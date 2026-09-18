@@ -1,0 +1,40 @@
+[
+    {
+        "test_id": "TC001",
+        "module": "Login",
+        "test_case": "Check login with valid credentials",
+        "steps": [
+            "Open the CampusHub login page",
+            "Enter a valid email",
+            "Enter a valid password",
+            "Click Login"
+        ],
+        "expected_result": "User should successfully log in",
+        "status": "Not Tested"
+    },
+    {
+        "test_id": "TC002",
+        "module": "Login",
+        "test_case": "Check login with invalid password",
+        "steps": [
+            "Open the CampusHub login page",
+            "Enter a valid email",
+            "Enter an incorrect password",
+            "Click Login"
+        ],
+        "expected_result": "An error message should be displayed",
+        "status": "Not Tested"
+    },
+    {
+        "test_id": "TC003",
+        "module": "Registration",
+        "test_case": "Check registration with valid details",
+        "steps": [
+            "Open the registration page",
+            "Enter valid user details",
+            "Click Register"
+        ],
+        "expected_result": "A new account should be created",
+        "status": "Not Tested"
+    }
+]
