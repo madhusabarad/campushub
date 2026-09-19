@@ -1,0 +1,26 @@
+{
+  "name": "campushub",
+  "version": "1.0.0",
+  "description": "Full-stack college campus service platform",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/madhusabarad/campushub.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/madhusabarad/campushub/issues"
+  },
+  "homepage": "https://github.com/madhusabarad/campushub#readme",
+  "dependencies": {
+    "dotenv": "^18.0.1",
+    "express": "^5.2.1",
+    "mongoose": "^9.10.1"
+  }
+}
