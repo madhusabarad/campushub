@@ -5,6 +5,7 @@ const mongoose = require('mongoose');
 const dashboardRoutes = require('./routes/dashboardRoutes');
 const shopRoutes      = require('./routes/shopRoutes');
 const cartRoutes      = require('./routes/cartRoutes');
+const orderRoutes     = require('./routes/orderRoutes');
 
 const app = express();
 
@@ -25,6 +26,7 @@ mongoose
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/shops',     shopRoutes);
 app.use('/api/cart',      cartRoutes);
+app.use('/api/orders',    orderRoutes);
 
 // ── Health Check ──────────────────────────────────────────────────────────────
 app.get('/', (req, res) => res.json({ message: 'CampusHub API is running' }));
