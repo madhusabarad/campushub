@@ -2,9 +2,11 @@
   "name": "campushub",
   "version": "1.0.0",
   "description": "Full-stack college campus service platform",
-  "main": "index.js",
+  "main": "server.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node server.js",
+    "dev": "nodemon server.js"
   },
   "repository": {
     "type": "git",
@@ -19,8 +21,11 @@
   },
   "homepage": "https://github.com/madhusabarad/campushub#readme",
   "dependencies": {
-    "dotenv": "^18.0.5",
-    "express": "^5.2.1",
-    "mongoose": "^9.10.4"
+    "dotenv": "^16.6.1",
+    "express": "^4.22.3",
+    "mongoose": "^8.24.4"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.14"
   }
 }
