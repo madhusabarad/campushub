@@ -22,3 +22,12 @@
   "author": "",
   "license": "ISC"
 }
+git checkout feature/auth-api
+git merge main
+# resolve package.json and .gitignore as above, then:
+git checkout --ours package-lock.json
+npm install
+git add .
+git commit
+git push
+
