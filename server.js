@@ -16,6 +16,9 @@ app.use(express.urlencoded({ extended: true }));
 const healthRoutes = require('./routes/healthRoutes');
 app.use('/api', healthRoutes);
 
+const authRoutes = require('./routes/authRoutes');
+app.use('/api/auth', authRoutes);
+
 // 404 handler
 app.use((req, res) => {
   res.status(404).json({ message: 'Route not found' });
