@@ -4,191 +4,182 @@ function App() {
   const [isSignup, setIsSignup] = useState(false)
 
   return (
-    <div className="min-h-screen bg-slate-50 flex items-center justify-center px-4 py-8">
-      <div className="w-full max-w-md">
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-indigo-600 text-white text-2xl font-bold mb-4">
-            C
-          </div>
+    <main className="min-h-screen bg-[#f5efe7] px-5 py-8 text-[#342c29]">
+      <div className="mx-auto flex min-h-[calc(100vh-4rem)] max-w-6xl items-center justify-center">
+        <section className="grid w-full overflow-hidden rounded-2xl border border-[#d8c9ba] bg-[#fbf8f3] shadow-[0_20px_60px_rgba(68,45,38,0.12)] md:grid-cols-2">
 
-          <h1 className="text-3xl font-bold text-slate-900">
-            CampusHub
-          </h1>
-
-          <p className="mt-2 text-slate-500">
-            Campus services in one place
-          </p>
-        </div>
-
-        <div className="bg-white rounded-2xl shadow-lg border border-slate-200 p-7">
-          <div className="flex bg-slate-100 rounded-lg p-1 mb-7">
-            <button
-              type="button"
-              onClick={() => setIsSignup(false)}
-              className={`flex-1 py-2.5 rounded-md text-sm font-medium transition ${!isSignup
-                ? 'bg-white text-indigo-600 shadow-sm'
-                : 'text-slate-500'
-                }`}
-            >
-              Login
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setIsSignup(true)}
-              className={`flex-1 py-2.5 rounded-md text-sm font-medium transition ${isSignup
-                ? 'bg-white text-indigo-600 shadow-sm'
-                : 'text-slate-500'
-                }`}
-            >
-              Sign Up
-            </button>
-          </div>
-
-          {!isSignup ? (
-            <form>
-              <div className="mb-5">
-                <label
-                  htmlFor="login-email"
-                  className="block text-sm font-medium text-slate-700 mb-2"
-                >
-                  Email
-                </label>
-
-                <input
-                  id="login-email"
-                  type="email"
-                  placeholder="Enter your email"
-                  className="w-full px-4 py-3 rounded-lg border border-slate-300 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
-                />
+          {/* Brand section */}
+          <div className="hidden min-h-[620px] flex-col justify-between bg-[#641f2b] p-12 text-[#f8f0e6] md:flex">
+            <div>
+              <div className="mb-8 flex h-12 w-12 items-center justify-center rounded-xl border border-[#d8b8ae] bg-[#f5e9dc] text-xl font-semibold text-[#641f2b]">
+                C
               </div>
 
-              <div className="mb-6">
-                <label
-                  htmlFor="login-password"
-                  className="block text-sm font-medium text-slate-700 mb-2"
-                >
-                  Password
-                </label>
-
-                <input
-                  id="login-password"
-                  type="password"
-                  placeholder="Enter your password"
-                  className="w-full px-4 py-3 rounded-lg border border-slate-300 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
-                />
-              </div>
-
-              <button
-                type="button"
-                className="w-full py-3 rounded-lg bg-indigo-600 text-white font-semibold hover:bg-indigo-700 transition"
-              >
-                Login
-              </button>
-
-              <p className="text-center text-sm text-slate-500 mt-6">
-                Don't have an account?{' '}
-                <button
-                  type="button"
-                  onClick={() => setIsSignup(true)}
-                  className="text-indigo-600 font-medium hover:underline"
-                >
-                  Sign up
-                </button>
+              <p className="mb-3 text-sm uppercase tracking-[0.25em] text-[#e1c7bd]">
+                CampusHub
               </p>
-            </form>
-          ) : (
-            <form>
-              <div className="mb-4">
-                <label
-                  htmlFor="signup-name"
-                  className="block text-sm font-medium text-slate-700 mb-2"
-                >
-                  Full Name
-                </label>
 
-                <input
-                  id="signup-name"
-                  type="text"
-                  placeholder="Enter your full name"
-                  className="w-full px-4 py-3 rounded-lg border border-slate-300 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
-                />
+              <h1 className="max-w-md font-serif text-4xl leading-tight">
+                Your campus services, brought together.
+              </h1>
+
+              <p className="mt-6 max-w-md text-sm leading-7 text-[#eadbd3]">
+                Food, printing and campus ordering services in one simple place.
+              </p>
+            </div>
+
+            <p className="text-sm text-[#dfc9c0]">
+              Simple. Reliable. Made for campus life.
+            </p>
+          </div>
+
+          {/* Login / Signup section */}
+          <div className="flex min-h-[620px] items-center justify-center px-6 py-10 sm:px-10">
+            <div className="w-full max-w-md">
+
+              <div className="mb-8">
+                <p className="mb-2 text-sm font-medium uppercase tracking-[0.2em] text-[#8a4a55]">
+                  Welcome
+                </p>
+
+                <h2 className="font-serif text-3xl font-semibold text-[#342c29]">
+                  {isSignup ? 'Create your account' : 'Welcome back'}
+                </h2>
+
+                <p className="mt-2 text-sm text-[#766d63]">
+                  {isSignup
+                    ? 'Create your CampusHub account to get started.'
+                    : 'Sign in to continue to CampusHub.'}
+                </p>
               </div>
 
-              <div className="mb-4">
-                <label
-                  htmlFor="signup-email"
-                  className="block text-sm font-medium text-slate-700 mb-2"
-                >
-                  Email
-                </label>
-
-                <input
-                  id="signup-email"
-                  type="email"
-                  placeholder="Enter your email"
-                  className="w-full px-4 py-3 rounded-lg border border-slate-300 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
-                />
-              </div>
-
-              <div className="mb-4">
-                <label
-                  htmlFor="signup-password"
-                  className="block text-sm font-medium text-slate-700 mb-2"
-                >
-                  Password
-                </label>
-
-                <input
-                  id="signup-password"
-                  type="password"
-                  placeholder="Create a password"
-                  className="w-full px-4 py-3 rounded-lg border border-slate-300 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
-                />
-              </div>
-
-              <div className="mb-6">
-                <label
-                  htmlFor="signup-confirm-password"
-                  className="block text-sm font-medium text-slate-700 mb-2"
-                >
-                  Confirm Password
-                </label>
-
-                <input
-                  id="signup-confirm-password"
-                  type="password"
-                  placeholder="Confirm your password"
-                  className="w-full px-4 py-3 rounded-lg border border-slate-300 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
-                />
-              </div>
-
-              <button
-                type="button"
-                className="w-full py-3 rounded-lg bg-indigo-600 text-white font-semibold hover:bg-indigo-700 transition"
-              >
-                Create Account
-              </button>
-
-              <p className="text-center text-sm text-slate-500 mt-6">
-                Already have an account?{' '}
+              {/* Login / Signup tabs */}
+              <div className="mb-8 flex border-b border-[#d8c9ba]">
                 <button
                   type="button"
                   onClick={() => setIsSignup(false)}
-                  className="text-indigo-600 font-medium hover:underline"
+                  className={`w-1/2 border-b-2 pb-3 text-sm font-medium transition ${!isSignup
+                      ? 'border-[#641f2b] text-[#641f2b]'
+                      : 'border-transparent text-[#8a8177] hover:text-[#544c44]'
+                    }`}
                 >
                   Login
                 </button>
-              </p>
-            </form>
-          )}
-        </div>
 
-        <p className="text-center text-xs text-slate-400 mt-6">
-          CampusHub
-        </p>
+                <button
+                  type="button"
+                  onClick={() => setIsSignup(true)}
+                  className={`w-1/2 border-b-2 pb-3 text-sm font-medium transition ${isSignup
+                      ? 'border-[#641f2b] text-[#641f2b]'
+                      : 'border-transparent text-[#8a8177] hover:text-[#544c44]'
+                    }`}
+                >
+                  Sign Up
+                </button>
+              </div>
+
+              <form className="space-y-5">
+
+                {/* Full Name */}
+                {isSignup && (
+                  <div>
+                    <label
+                      htmlFor="name"
+                      className="mb-2 block text-sm font-medium text-[#514940]"
+                    >
+                      Full Name
+                    </label>
+
+                    <input
+                      id="name"
+                      type="text"
+                      placeholder="Enter your full name"
+                      className="w-full border border-[#d5c8b8] bg-[#fffdf8] px-4 py-3 text-sm outline-none transition placeholder:text-[#aaa095] focus:border-[#8a4a55] focus:ring-2 focus:ring-[#8a4a55]/15"
+                    />
+                  </div>
+                )}
+
+                {/* Email */}
+                <div>
+                  <label
+                    htmlFor="email"
+                    className="mb-2 block text-sm font-medium text-[#514940]"
+                  >
+                    Email
+                  </label>
+
+                  <input
+                    id="email"
+                    type="email"
+                    placeholder="Enter your email"
+                    className="w-full border border-[#d5c8b8] bg-[#fffdf8] px-4 py-3 text-sm outline-none transition placeholder:text-[#aaa095] focus:border-[#8a4a55] focus:ring-2 focus:ring-[#8a4a55]/15"
+                  />
+                </div>
+
+                {/* Password */}
+                <div>
+                  <label
+                    htmlFor="password"
+                    className="mb-2 block text-sm font-medium text-[#514940]"
+                  >
+                    Password
+                  </label>
+
+                  <input
+                    id="password"
+                    type="password"
+                    placeholder="Enter your password"
+                    className="w-full border border-[#d5c8b8] bg-[#fffdf8] px-4 py-3 text-sm outline-none transition placeholder:text-[#aaa095] focus:border-[#8a4a55] focus:ring-2 focus:ring-[#8a4a55]/15"
+                  />
+                </div>
+
+                {/* Confirm Password */}
+                {isSignup && (
+                  <div>
+                    <label
+                      htmlFor="confirmPassword"
+                      className="mb-2 block text-sm font-medium text-[#514940]"
+                    >
+                      Confirm Password
+                    </label>
+
+                    <input
+                      id="confirmPassword"
+                      type="password"
+                      placeholder="Confirm your password"
+                      className="w-full border border-[#d5c8b8] bg-[#fffdf8] px-4 py-3 text-sm outline-none transition placeholder:text-[#aaa095] focus:border-[#8a4a55] focus:ring-2 focus:ring-[#8a4a55]/15"
+                    />
+                  </div>
+                )}
+
+                {/* Main button */}
+                <button
+                  type="button"
+                  className="w-full bg-[#641f2b] px-4 py-3 text-sm font-medium text-white transition hover:bg-[#4f1721]"
+                >
+                  {isSignup ? 'Create Account' : 'Login'}
+                </button>
+              </form>
+
+              {/* Bottom switch */}
+              <p className="mt-7 text-center text-sm text-[#766d63]">
+                {isSignup
+                  ? 'Already have an account?'
+                  : "Don't have an account?"}{' '}
+                <button
+                  type="button"
+                  onClick={() => setIsSignup(!isSignup)}
+                  className="font-medium text-[#8a4a55] hover:text-[#6e3540]"
+                >
+                  {isSignup ? 'Login' : 'Sign Up'}
+                </button>
+              </p>
+
+            </div>
+          </div>
+        </section>
       </div>
-    </div>
+    </main>
   )
 }
 
