@@ -1,9 +1,16 @@
 import { useState } from 'react'
 import Shops from './Shops.jsx'
+import Menu from './Menu.jsx'
+
 function Dashboard() {
     const [showShops, setShowShops] = useState(false)
+    const [selectedShopId, setSelectedShopId] = useState(null)
+    if (selectedShopId) {
+        return <Menu />
+    }
+
     if (showShops) {
-        return <Shops />
+        return <Shops onViewMenu={setSelectedShopId} />
     }
     return (
         <main className="min-h-screen bg-[#f5efe7] text-[#342c29]">
