@@ -12,6 +12,3 @@ node_modules/
 # OS
 .DS_Store
 Thumbs.db
-
-git add .gitignore
-git commit        # or: git merge --continue
