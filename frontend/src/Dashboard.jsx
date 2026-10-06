@@ -1,4 +1,10 @@
+import { useState } from 'react'
+import Shops from './Shops.jsx'
 function Dashboard() {
+    const [showShops, setShowShops] = useState(false)
+    if (showShops) {
+        return <Shops />
+    }
     return (
         <main className="min-h-screen bg-[#f5efe7] text-[#342c29]">
             {/* Header */}
@@ -53,6 +59,7 @@ function Dashboard() {
                         {/* Canteen */}
                         <button
                             type="button"
+                            onClick={() => setShowShops(true)}
                             className="group border border-[#d8c9ba] bg-[#fbf8f3] p-6 text-left transition hover:-translate-y-1 hover:border-[#a86b75] hover:shadow-[0_12px_30px_rgba(68,45,38,0.08)]"
                         >
                             <p className="text-sm font-medium uppercase tracking-[0.12em] text-[#8a4a55]">
