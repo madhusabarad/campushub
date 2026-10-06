@@ -9,8 +9,8 @@ const register = async (req, res) => {
     const { name, email, password, role, collegeId } = req.body;
 
     // Validate required fields
-    if (!name || !email || !password || !role) {
-      return res.status(400).json({ message: 'Please provide name, email, password, and role.' });
+    if (!name || !email || !password || !role || !collegeId) {
+      return res.status(400).json({ message: 'Please provide name, email, password, role, and collegeId.' });
     }
 
     // Check for duplicate email
