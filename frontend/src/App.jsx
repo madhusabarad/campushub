@@ -1,7 +1,135 @@
 import { useState } from 'react'
+import Dashboard from './Dashboard'
 
 function App() {
   const [isSignup, setIsSignup] = useState(false)
+  const [isLoggedIn, setIsLoggedIn] = useState(false)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+  const [success, setSuccess] = useState('')
+
+  const [formData, setFormData] = useState({
+    name: '',
+    collegeId: '',
+    email: '',
+    password: '',
+    confirmPassword: '',
+  })
+
+  const handleChange = (event) => {
+    const { id, value } = event.target
+
+    setFormData((previous) => ({
+      ...previous,
+      [id]: value,
+    }))
+
+    setError('')
+    setSuccess('')
+  }
+
+  const handleLogin = async () => {
+    if (!formData.email || !formData.password) {
+      setError('Please enter your email and password.')
+      return
+    }
+
+    try {
+      setLoading(true)
+      setError('')
+      setSuccess('')
+
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: formData.email,
+          password: formData.password,
+        }),
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        setError(data.message || 'Login failed.')
+        return
+      }
+
+      localStorage.setItem('token', data.token)
+      localStorage.setItem('user', JSON.stringify(data.user))
+
+      setIsLoggedIn(true)
+    } catch (error) {
+      setError('Unable to connect to the server.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleSignup = async () => {
+    if (
+      !formData.name ||
+      !formData.collegeId ||
+      !formData.email ||
+      !formData.password ||
+      !formData.confirmPassword
+    ) {
+      setError('Please fill in all fields.')
+      return
+    }
+
+    if (formData.password !== formData.confirmPassword) {
+      setError('Passwords do not match.')
+      return
+    }
+
+    try {
+      setLoading(true)
+      setError('')
+      setSuccess('')
+
+      const response = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: formData.name,
+          email: formData.email,
+          password: formData.password,
+          role: 'student',
+          collegeId: formData.collegeId,
+        }),
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        setError(data.message || 'Signup failed.')
+        return
+      }
+
+      setIsSignup(false)
+      setFormData({
+        name: '',
+        collegeId: '',
+        email: formData.email,
+        password: '',
+        confirmPassword: '',
+      })
+      setSuccess('Account created successfully. Please login.')
+    } catch (error) {
+      setError('Unable to connect to the server.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  if (isLoggedIn) {
+    return <Dashboard />
+  }
 
   return (
     <main className="min-h-screen bg-[#f5efe7] px-5 py-8 text-[#342c29]">
@@ -57,7 +185,11 @@ function App() {
               <div className="mb-8 flex border-b border-[#d8c9ba]">
                 <button
                   type="button"
-                  onClick={() => setIsSignup(false)}
+                  onClick={() => {
+                    setIsSignup(false)
+                    setError('')
+                    setSuccess('')
+                  }}
                   className={`w-1/2 border-b-2 pb-3 text-sm font-medium transition ${!isSignup
                       ? 'border-[#641f2b] text-[#641f2b]'
                       : 'border-transparent text-[#8a8177] hover:text-[#544c44]'
@@ -68,7 +200,11 @@ function App() {
 
                 <button
                   type="button"
-                  onClick={() => setIsSignup(true)}
+                  onClick={() => {
+                    setIsSignup(true)
+                    setError('')
+                    setSuccess('')
+                  }}
                   className={`w-1/2 border-b-2 pb-3 text-sm font-medium transition ${isSignup
                       ? 'border-[#641f2b] text-[#641f2b]'
                       : 'border-transparent text-[#8a8177] hover:text-[#544c44]'
@@ -78,7 +214,18 @@ function App() {
                 </button>
               </div>
 
-              <form className="space-y-5">
+              <form
+                className="space-y-5"
+                onSubmit={(event) => {
+                  event.preventDefault()
+
+                  if (isSignup) {
+                    handleSignup()
+                  } else {
+                    handleLogin()
+                  }
+                }}
+              >
 
                 {/* Full Name */}
                 {isSignup && (
@@ -94,6 +241,29 @@ function App() {
                       id="name"
                       type="text"
                       placeholder="Enter your full name"
+                      value={formData.name}
+                      onChange={handleChange}
+                      className="w-full border border-[#d5c8b8] bg-[#fffdf8] px-4 py-3 text-sm outline-none transition placeholder:text-[#aaa095] focus:border-[#8a4a55] focus:ring-2 focus:ring-[#8a4a55]/15"
+                    />
+                  </div>
+                )}
+
+                {/* College ID */}
+                {isSignup && (
+                  <div>
+                    <label
+                      htmlFor="collegeId"
+                      className="mb-2 block text-sm font-medium text-[#514940]"
+                    >
+                      College ID
+                    </label>
+
+                    <input
+                      id="collegeId"
+                      type="text"
+                      placeholder="Enter your college ID"
+                      value={formData.collegeId}
+                      onChange={handleChange}
                       className="w-full border border-[#d5c8b8] bg-[#fffdf8] px-4 py-3 text-sm outline-none transition placeholder:text-[#aaa095] focus:border-[#8a4a55] focus:ring-2 focus:ring-[#8a4a55]/15"
                     />
                   </div>
@@ -112,6 +282,8 @@ function App() {
                     id="email"
                     type="email"
                     placeholder="Enter your email"
+                    value={formData.email}
+                    onChange={handleChange}
                     className="w-full border border-[#d5c8b8] bg-[#fffdf8] px-4 py-3 text-sm outline-none transition placeholder:text-[#aaa095] focus:border-[#8a4a55] focus:ring-2 focus:ring-[#8a4a55]/15"
                   />
                 </div>
@@ -129,6 +301,8 @@ function App() {
                     id="password"
                     type="password"
                     placeholder="Enter your password"
+                    value={formData.password}
+                    onChange={handleChange}
                     className="w-full border border-[#d5c8b8] bg-[#fffdf8] px-4 py-3 text-sm outline-none transition placeholder:text-[#aaa095] focus:border-[#8a4a55] focus:ring-2 focus:ring-[#8a4a55]/15"
                   />
                 </div>
@@ -147,17 +321,37 @@ function App() {
                       id="confirmPassword"
                       type="password"
                       placeholder="Confirm your password"
+                      value={formData.confirmPassword}
+                      onChange={handleChange}
                       className="w-full border border-[#d5c8b8] bg-[#fffdf8] px-4 py-3 text-sm outline-none transition placeholder:text-[#aaa095] focus:border-[#8a4a55] focus:ring-2 focus:ring-[#8a4a55]/15"
                     />
                   </div>
                 )}
 
+                {/* Messages */}
+                {error && (
+                  <p className="text-sm text-red-600">
+                    {error}
+                  </p>
+                )}
+
+                {success && (
+                  <p className="text-sm text-green-700">
+                    {success}
+                  </p>
+                )}
+
                 {/* Main button */}
                 <button
-                  type="button"
-                  className="w-full bg-[#641f2b] px-4 py-3 text-sm font-medium text-white transition hover:bg-[#4f1721]"
+                  type="submit"
+                  disabled={loading}
+                  className="w-full bg-[#641f2b] px-4 py-3 text-sm font-medium text-white transition hover:bg-[#4f1721] disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                  {isSignup ? 'Create Account' : 'Login'}
+                  {loading
+                    ? 'Please wait...'
+                    : isSignup
+                      ? 'Create Account'
+                      : 'Login'}
                 </button>
               </form>
 
@@ -168,7 +362,11 @@ function App() {
                   : "Don't have an account?"}{' '}
                 <button
                   type="button"
-                  onClick={() => setIsSignup(!isSignup)}
+                  onClick={() => {
+                    setIsSignup(!isSignup)
+                    setError('')
+                    setSuccess('')
+                  }}
                   className="font-medium text-[#8a4a55] hover:text-[#6e3540]"
                 >
                   {isSignup ? 'Login' : 'Sign Up'}
