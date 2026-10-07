@@ -22,7 +22,7 @@ const shops = [
     },
 ]
 
-function Shops() {
+function Shops({ onViewMenu }) {
     return (
         <main className="min-h-screen bg-[#f5efe7] text-[#342c29]">
             <header className="border-b border-[#d8c9ba] bg-[#fbf8f3]">
@@ -63,8 +63,8 @@ function Shops() {
 
                                     <span
                                         className={`text-xs font-medium ${shop.isOpen
-                                                ? 'text-[#3f6b45]'
-                                                : 'text-[#8a8177]'
+                                            ? 'text-[#3f6b45]'
+                                            : 'text-[#8a8177]'
                                             }`}
                                     >
                                         {shop.isOpen ? 'Open' : 'Closed'}
@@ -81,6 +81,7 @@ function Shops() {
 
                                 <button
                                     type="button"
+                                    onClick={() => onViewMenu(shop.id)}
                                     className="mt-5 text-sm font-medium text-[#641f2b] transition hover:text-[#4f1721]"
                                 >
                                     View Menu
