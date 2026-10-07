@@ -1,12 +1,117 @@
-import { useState } from 'react'
-import Dashboard from './Dashboard'
+import { useEffect, useState } from 'react'
+import Dashboard from './Dashboard.jsx'
+import Menu from './Menu.jsx'
 
 function App() {
+  const [isLoggedIn, setIsLoggedIn] = useState(
+    localStorage.getItem('campushub_token') !== null
+  )
+
+  const [currentPage, setCurrentPage] = useState(
+    localStorage.getItem('campushub_token') !== null
+      ? 'dashboard'
+      : 'login'
+  )
+
+  const [selectedShopId, setSelectedShopId] = useState(null)
+
+  useEffect(() => {
+    const handlePopState = (event) => {
+      const state = event.state
+
+      if (!state || state.page === 'dashboard') {
+        setCurrentPage('dashboard')
+        setSelectedShopId(null)
+        return
+      }
+
+      if (state.page === 'menu') {
+        setCurrentPage('menu')
+        setSelectedShopId(state.shopId)
+      }
+    }
+
+    window.addEventListener('popstate', handlePopState)
+
+    return () => {
+      window.removeEventListener('popstate', handlePopState)
+    }
+  }, [])
+
+  const handleLogin = (token) => {
+    localStorage.setItem('campushub_token', token)
+    setIsLoggedIn(true)
+    setCurrentPage('dashboard')
+    setSelectedShopId(null)
+
+    window.history.replaceState(
+      { page: 'dashboard' },
+      '',
+      window.location.pathname
+    )
+  }
+
+  const handleLogout = () => {
+    localStorage.removeItem('campushub_token')
+    setIsLoggedIn(false)
+    setCurrentPage('login')
+    setSelectedShopId(null)
+
+    window.history.replaceState(
+      { page: 'login' },
+      '',
+      window.location.pathname
+    )
+  }
+
+  const openMenu = (shopId) => {
+    setSelectedShopId(shopId)
+    setCurrentPage('menu')
+
+    window.history.pushState(
+      {
+        page: 'menu',
+        shopId,
+      },
+      '',
+      window.location.pathname
+    )
+  }
+
+  const goToDashboard = () => {
+    setCurrentPage('dashboard')
+    setSelectedShopId(null)
+
+    window.history.pushState(
+      { page: 'dashboard' },
+      '',
+      window.location.pathname
+    )
+  }
+
+  if (!isLoggedIn) {
+    return <LoginPage onLogin={handleLogin} />
+  }
+
+  if (currentPage === 'menu' && selectedShopId) {
+    return (
+      <Menu
+        shopId={selectedShopId}
+        onBack={goToDashboard}
+      />
+    )
+  }
+
+  return (
+    <Dashboard
+      onOpenMenu={openMenu}
+      onLogout={handleLogout}
+    />
+  )
+}
+
+function LoginPage({ onLogin }) {
   const [isSignup, setIsSignup] = useState(false)
-  const [isLoggedIn, setIsLoggedIn] = useState(false)
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
-  const [success, setSuccess] = useState('')
 
   const [formData, setFormData] = useState({
     name: '',
@@ -15,6 +120,10 @@ function App() {
     password: '',
     confirmPassword: '',
   })
+
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+  const [success, setSuccess] = useState('')
 
   const handleChange = (event) => {
     const { id, value } = event.target
@@ -57,10 +166,7 @@ function App() {
         return
       }
 
-      localStorage.setItem('token', data.token)
-      localStorage.setItem('user', JSON.stringify(data.user))
-
-      setIsLoggedIn(true)
+      onLogin(data.token)
     } catch (error) {
       setError('Unable to connect to the server.')
     } finally {
@@ -90,7 +196,7 @@ function App() {
       setError('')
       setSuccess('')
 
-      const response = await fetch('/api/auth/register', {
+      const response = await fetch('/api/auth/signup', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -99,8 +205,6 @@ function App() {
           name: formData.name,
           email: formData.email,
           password: formData.password,
-          role: 'student',
-          collegeId: formData.collegeId,
         }),
       })
 
@@ -112,6 +216,7 @@ function App() {
       }
 
       setIsSignup(false)
+
       setFormData({
         name: '',
         collegeId: '',
@@ -119,6 +224,7 @@ function App() {
         password: '',
         confirmPassword: '',
       })
+
       setSuccess('Account created successfully. Please login.')
     } catch (error) {
       setError('Unable to connect to the server.')
@@ -127,16 +233,11 @@ function App() {
     }
   }
 
-  if (isLoggedIn) {
-    return <Dashboard />
-  }
-
   return (
     <main className="min-h-screen bg-[#f5efe7] px-5 py-8 text-[#342c29]">
       <div className="mx-auto flex min-h-[calc(100vh-4rem)] max-w-6xl items-center justify-center">
         <section className="grid w-full overflow-hidden rounded-2xl border border-[#d8c9ba] bg-[#fbf8f3] shadow-[0_20px_60px_rgba(68,45,38,0.12)] md:grid-cols-2">
 
-          {/* Brand section */}
           <div className="hidden min-h-[620px] flex-col justify-between bg-[#641f2b] p-12 text-[#f8f0e6] md:flex">
             <div>
               <div className="mb-8 flex h-12 w-12 items-center justify-center rounded-xl border border-[#d8b8ae] bg-[#f5e9dc] text-xl font-semibold text-[#641f2b]">
@@ -161,7 +262,6 @@ function App() {
             </p>
           </div>
 
-          {/* Login / Signup section */}
           <div className="flex min-h-[620px] items-center justify-center px-6 py-10 sm:px-10">
             <div className="w-full max-w-md">
 
@@ -181,7 +281,6 @@ function App() {
                 </p>
               </div>
 
-              {/* Login / Signup tabs */}
               <div className="mb-8 flex border-b border-[#d8c9ba]">
                 <button
                   type="button"
@@ -191,8 +290,8 @@ function App() {
                     setSuccess('')
                   }}
                   className={`w-1/2 border-b-2 pb-3 text-sm font-medium transition ${!isSignup
-                      ? 'border-[#641f2b] text-[#641f2b]'
-                      : 'border-transparent text-[#8a8177] hover:text-[#544c44]'
+                    ? 'border-[#641f2b] text-[#641f2b]'
+                    : 'border-transparent text-[#8a8177] hover:text-[#544c44]'
                     }`}
                 >
                   Login
@@ -206,8 +305,8 @@ function App() {
                     setSuccess('')
                   }}
                   className={`w-1/2 border-b-2 pb-3 text-sm font-medium transition ${isSignup
-                      ? 'border-[#641f2b] text-[#641f2b]'
-                      : 'border-transparent text-[#8a8177] hover:text-[#544c44]'
+                    ? 'border-[#641f2b] text-[#641f2b]'
+                    : 'border-transparent text-[#8a8177] hover:text-[#544c44]'
                     }`}
                 >
                   Sign Up
@@ -226,8 +325,6 @@ function App() {
                   }
                 }}
               >
-
-                {/* Full Name */}
                 {isSignup && (
                   <div>
                     <label
@@ -248,7 +345,6 @@ function App() {
                   </div>
                 )}
 
-                {/* College ID */}
                 {isSignup && (
                   <div>
                     <label
@@ -269,7 +365,6 @@ function App() {
                   </div>
                 )}
 
-                {/* Email */}
                 <div>
                   <label
                     htmlFor="email"
@@ -288,7 +383,6 @@ function App() {
                   />
                 </div>
 
-                {/* Password */}
                 <div>
                   <label
                     htmlFor="password"
@@ -307,7 +401,6 @@ function App() {
                   />
                 </div>
 
-                {/* Confirm Password */}
                 {isSignup && (
                   <div>
                     <label
@@ -328,7 +421,6 @@ function App() {
                   </div>
                 )}
 
-                {/* Messages */}
                 {error && (
                   <p className="text-sm text-red-600">
                     {error}
@@ -341,7 +433,6 @@ function App() {
                   </p>
                 )}
 
-                {/* Main button */}
                 <button
                   type="submit"
                   disabled={loading}
@@ -355,11 +446,11 @@ function App() {
                 </button>
               </form>
 
-              {/* Bottom switch */}
               <p className="mt-7 text-center text-sm text-[#766d63]">
                 {isSignup
                   ? 'Already have an account?'
                   : "Don't have an account?"}{' '}
+
                 <button
                   type="button"
                   onClick={() => {
