@@ -1,179 +1,207 @@
-import { useState } from 'react'
-import Shops from './Shops.jsx'
-import Menu from './Menu.jsx'
-
-function Dashboard() {
-    const [showShops, setShowShops] = useState(false)
-    const [selectedShopId, setSelectedShopId] = useState(null)
-    if (selectedShopId) {
-        return <Menu />
-    }
-
-    if (showShops) {
-        return <Shops onViewMenu={setSelectedShopId} />
-    }
+function Dashboard({ onOpenMenu, onOpenCart, onLogout }) {
     return (
-        <main className="min-h-screen bg-[#f5efe7] text-[#342c29]">
+        <main className="min-h-screen bg-[#f7f0e6] text-[#3f2720]">
+
             {/* Header */}
-            <header className="border-b border-[#d8c9ba] bg-[#fbf8f3]">
+            <header className="border-b border-[#eadfd2] bg-[#fffaf4]">
                 <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-5">
+
                     <div>
-                        <p className="text-lg font-semibold text-[#641f2b]">CampusHub</p>
-                        <p className="text-xs text-[#766d63]">
-                            Campus services, brought together.
+                        <h1 className="text-2xl font-bold text-[#7b1e1e]">
+                            CampusHub
+                        </h1>
+
+                        <p className="text-sm text-gray-500">
+                            Your campus, connected
                         </p>
                     </div>
 
-                    <button
-                        type="button"
-                        className="border border-[#cdbdaf] px-5 py-2 text-sm font-medium text-[#641f2b] transition hover:bg-[#f5efe7]"
-                    >
-                        Cart
-                    </button>
+                    <div className="flex items-center gap-3">
+                        <button
+                            type="button"
+                            onClick={onOpenCart}
+                            className="rounded-xl border border-[#7b1e1e] px-5 py-2.5 text-sm font-semibold text-[#7b1e1e] transition hover:bg-[#7b1e1e] hover:text-white"
+                        >
+                            Cart
+                        </button>
+
+                        <button
+                            type="button"
+                            onClick={onLogout}
+                            className="rounded-xl bg-[#7b1e1e] px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-[#641818]"
+                        >
+                            Logout
+                        </button>
+                    </div>
                 </div>
             </header>
 
             {/* Main Content */}
             <div className="mx-auto max-w-7xl px-6 py-10">
+
                 {/* Welcome */}
                 <section className="mb-10">
-                    <p className="mb-2 text-sm font-medium uppercase tracking-[0.18em] text-[#8a4a55]">
+                    <p className="mb-2 text-sm font-semibold uppercase tracking-[0.2em] text-[#8b5e3c]">
                         Student Dashboard
                     </p>
 
-                    <h1 className="font-serif text-3xl font-semibold text-[#342c29] sm:text-4xl">
-                        Welcome back
-                    </h1>
+                    <h2 className="text-4xl font-bold text-[#3f2720]">
+                        Welcome to CampusHub
+                    </h2>
 
-                    <p className="mt-2 max-w-2xl text-sm leading-6 text-[#766d63]">
-                        Access campus food, printing and ordering services from one place.
+                    <p className="mt-3 max-w-2xl text-gray-600">
+                        Access campus services, explore food outlets and manage
+                        your campus activities from one place.
                     </p>
                 </section>
 
                 {/* Campus Services */}
-                <section>
-                    <div className="mb-5">
-                        <h2 className="text-xl font-semibold text-[#342c29]">
+                <section className="mb-12">
+                    <div className="mb-6">
+                        <h3 className="text-2xl font-bold">
                             Campus Services
-                        </h2>
+                        </h3>
 
-                        <p className="mt-1 text-sm text-[#766d63]">
-                            Browse available campus outlets and services.
+                        <p className="mt-1 text-gray-500">
+                            Explore the services available on campus.
                         </p>
                     </div>
 
-                    <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-                        {/* Canteen */}
+                    <div className="grid gap-6 md:grid-cols-3">
+
+                        {/* Campus Canteen */}
                         <button
                             type="button"
-                            onClick={() => setShowShops(true)}
-                            className="group border border-[#d8c9ba] bg-[#fbf8f3] p-6 text-left transition hover:-translate-y-1 hover:border-[#a86b75] hover:shadow-[0_12px_30px_rgba(68,45,38,0.08)]"
+                            onClick={() => onOpenMenu('1')}
+                            className="group rounded-2xl border border-[#eadfd2] bg-white p-6 text-left shadow-sm transition hover:-translate-y-1 hover:shadow-lg"
                         >
-                            <p className="text-sm font-medium uppercase tracking-[0.12em] text-[#8a4a55]">
-                                Food Service
+                            <div className="mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-[#f7e7d5] text-2xl">
+                                🍽️
+                            </div>
+
+                            <h4 className="text-xl font-bold text-[#3f2720]">
+                                Campus Canteen
+                            </h4>
+
+                            <p className="mt-2 text-sm leading-6 text-gray-500">
+                                Browse food and beverages available at the
+                                campus canteen.
                             </p>
 
-                            <h3 className="mt-3 text-xl font-semibold text-[#342c29]">
-                                Canteen
-                            </h3>
-
-                            <p className="mt-2 text-sm leading-6 text-[#766d63]">
-                                Browse available food items and place an order.
-                            </p>
-
-                            <span className="mt-5 inline-block text-sm font-medium text-[#641f2b]">
-                                Browse
+                            <span className="mt-5 inline-block text-sm font-semibold text-[#7b1e1e] group-hover:underline">
+                                View Menu →
                             </span>
                         </button>
 
-                        {/* Food Court */}
+                        {/* Akshay Food Court */}
                         <button
                             type="button"
-                            className="group border border-[#d8c9ba] bg-[#fbf8f3] p-6 text-left transition hover:-translate-y-1 hover:border-[#a86b75] hover:shadow-[0_12px_30px_rgba(68,45,38,0.08)]"
+                            onClick={() => onOpenMenu('2')}
+                            className="group rounded-2xl border border-[#eadfd2] bg-white p-6 text-left shadow-sm transition hover:-translate-y-1 hover:shadow-lg"
                         >
-                            <p className="text-sm font-medium uppercase tracking-[0.12em] text-[#8a4a55]">
-                                Food Service
+                            <div className="mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-[#f7e7d5] text-2xl">
+                                🍛
+                            </div>
+
+                            <h4 className="text-xl font-bold text-[#3f2720]">
+                                Akshay Food Court
+                            </h4>
+
+                            <p className="mt-2 text-sm leading-6 text-gray-500">
+                                Explore meals, snacks and drinks from the food
+                                court.
                             </p>
 
-                            <h3 className="mt-3 text-xl font-semibold text-[#342c29]">
-                                Food Court
-                            </h3>
-
-                            <p className="mt-2 text-sm leading-6 text-[#766d63]">
-                                Explore food court outlets and their menus.
-                            </p>
-
-                            <span className="mt-5 inline-block text-sm font-medium text-[#641f2b]">
-                                Browse
+                            <span className="mt-5 inline-block text-sm font-semibold text-[#7b1e1e] group-hover:underline">
+                                View Menu →
                             </span>
                         </button>
 
-                        {/* Bakery */}
+                        {/* Campus Bakery */}
                         <button
                             type="button"
-                            className="group border border-[#d8c9ba] bg-[#fbf8f3] p-6 text-left transition hover:-translate-y-1 hover:border-[#a86b75] hover:shadow-[0_12px_30px_rgba(68,45,38,0.08)]"
+                            onClick={() => onOpenMenu('3')}
+                            className="group rounded-2xl border border-[#eadfd2] bg-white p-6 text-left shadow-sm transition hover:-translate-y-1 hover:shadow-lg"
                         >
-                            <p className="text-sm font-medium uppercase tracking-[0.12em] text-[#8a4a55]">
-                                Food Service
+                            <div className="mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-[#f7e7d5] text-2xl">
+                                🥐
+                            </div>
+
+                            <h4 className="text-xl font-bold text-[#3f2720]">
+                                Campus Bakery
+                            </h4>
+
+                            <p className="mt-2 text-sm leading-6 text-gray-500">
+                                Find bakery items, snacks and refreshments
+                                around campus.
                             </p>
 
-                            <h3 className="mt-3 text-xl font-semibold text-[#342c29]">
-                                Bakery
-                            </h3>
-
-                            <p className="mt-2 text-sm leading-6 text-[#766d63]">
-                                View bakery items and check their availability.
-                            </p>
-
-                            <span className="mt-5 inline-block text-sm font-medium text-[#641f2b]">
-                                Browse
+                            <span className="mt-5 inline-block text-sm font-semibold text-[#7b1e1e] group-hover:underline">
+                                View Menu →
                             </span>
                         </button>
+
                     </div>
                 </section>
 
                 {/* Xerox */}
-                <section className="mt-8">
-                    <button
-                        type="button"
-                        className="w-full border border-[#d8c9ba] bg-[#641f2b] p-7 text-left text-[#f8f0e6] transition hover:bg-[#4f1721]"
-                    >
-                        <p className="text-sm font-medium uppercase tracking-[0.12em] text-[#dfc9c0]">
-                            Campus Service
-                        </p>
+                <section className="mb-12">
+                    <div className="rounded-2xl border border-[#eadfd2] bg-white p-7 shadow-sm">
+                        <div className="flex flex-col justify-between gap-6 md:flex-row md:items-center">
 
-                        <h2 className="mt-3 text-2xl font-semibold">
-                            Xerox Services
-                        </h2>
+                            <div>
+                                <p className="text-sm font-semibold uppercase tracking-[0.15em] text-[#8b5e3c]">
+                                    Campus Service
+                                </p>
 
-                        <p className="mt-2 max-w-2xl text-sm leading-6 text-[#eadbd3]">
-                            Submit a printing or Xerox request through CampusHub.
-                        </p>
+                                <h3 className="mt-2 text-2xl font-bold">
+                                    Xerox & Printing
+                                </h3>
 
-                        <span className="mt-5 inline-block text-sm font-medium text-white">
-                            Submit Request
-                        </span>
-                    </button>
+                                <p className="mt-2 max-w-2xl text-gray-500">
+                                    Access printing and Xerox services available
+                                    around your campus.
+                                </p>
+                            </div>
+
+                            <button
+                                type="button"
+                                className="rounded-xl bg-[#7b1e1e] px-6 py-3 font-semibold text-white transition hover:bg-[#641818]"
+                            >
+                                Explore Service
+                            </button>
+
+                        </div>
+                    </div>
                 </section>
 
                 {/* Recent Orders */}
-                <section className="mt-10">
-                    <div className="mb-5">
-                        <h2 className="text-xl font-semibold text-[#342c29]">
+                <section>
+                    <div className="mb-6">
+                        <h3 className="text-2xl font-bold">
                             Recent Orders
-                        </h2>
+                        </h3>
 
-                        <p className="mt-1 text-sm text-[#766d63]">
-                            View your recent campus orders and their status.
+                        <p className="mt-1 text-gray-500">
+                            Your recent campus orders will appear here.
                         </p>
                     </div>
 
-                    <div className="border border-[#d8c9ba] bg-[#fbf8f3] px-6 py-10 text-center">
-                        <p className="text-sm text-[#766d63]">
-                            No recent orders to display.
+                    <div className="rounded-2xl border border-dashed border-[#d9cabb] bg-[#fffaf4] px-6 py-12 text-center">
+                        <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-[#f1e3d5] text-2xl">
+                            🛍️
+                        </div>
+
+                        <h4 className="text-lg font-semibold">
+                            No recent orders
+                        </h4>
+
+                        <p className="mt-2 text-sm text-gray-500">
+                            Your completed orders will appear here.
                         </p>
                     </div>
                 </section>
+
             </div>
         </main>
     )
