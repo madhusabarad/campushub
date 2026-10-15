@@ -3,6 +3,13 @@ const express = require('express');
 const connectDB = require('./config/db');
 const errorHandler = require('./middleware/errorHandler');
 
+const healthRoutes = require('./routes/healthRoutes');
+const authRoutes = require('./routes/authRoutes');
+const dashboardRoutes = require('./routes/dashboardRoutes');
+const shopRoutes = require('./routes/shopRoutes');
+const cartRoutes = require('./routes/cartRoutes');
+const orderRoutes = require('./routes/orderRoutes');
+
 // Connect to MongoDB
 connectDB();
 
@@ -13,11 +20,15 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // Routes
-const healthRoutes = require('./routes/healthRoutes');
 app.use('/api', healthRoutes);
-
-const authRoutes = require('./routes/authRoutes');
 app.use('/api/auth', authRoutes);
+app.use('/api/dashboard', dashboardRoutes);
+app.use('/api/shops', shopRoutes);
+app.use('/api/cart', cartRoutes);
+app.use('/api/orders', orderRoutes);
+
+// Root check
+app.get('/', (req, res) => res.json({ message: 'CampusHub API is running' }));
 
 // 404 handler
 app.use((req, res) => {
