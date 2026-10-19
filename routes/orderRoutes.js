@@ -1,31 +1,35 @@
+
 const express = require('express');
 const router = express.Router();
 
 const authMiddleware = require('../middleware/authMiddleware');
 const shopkeeperMiddleware = require('../middleware/shopkeeperMiddleware');
+
 const {
   createOrder,
   getUserOrders,
   getOrderById,
+  getIncomingOrders,
   updateOrderStatus,
 } = require('../controllers/orderController');
 
-// All order routes are protected
+// All order routes require authentication
 router.use(authMiddleware);
 
-// POST   /api/orders              → place order from current cart
+// Student order routes
 router.post('/', createOrder);
-
-// GET    /api/orders              → list all orders for the logged-in user
 router.get('/', getUserOrders);
 
-// GET    /api/orders/:id          → get a single order (ownership enforced)
-router.get('/:id', getOrderById);
+// Shopkeeper order routes — keep these before /:id
+router.get('/shop/incoming', shopkeeperMiddleware, getIncomingOrders);
 
-// PATCH  /api/orders/:id/status   → update order status (shopkeeper — no role guard yet)
 router.patch(
   '/:id/status',
   shopkeeperMiddleware,
   updateOrderStatus
 );
+
+// Get one of the logged-in student's own orders
+router.get('/:id', getOrderById);
+
 module.exports = router;

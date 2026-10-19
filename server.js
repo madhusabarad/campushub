@@ -9,6 +9,7 @@ const dashboardRoutes = require('./routes/dashboardRoutes');
 const shopRoutes = require('./routes/shopRoutes');
 const cartRoutes = require('./routes/cartRoutes');
 const orderRoutes = require('./routes/orderRoutes');
+const menuRoutes = require('./routes/menuRoutes');
 
 // Connect to MongoDB
 connectDB();
@@ -26,6 +27,7 @@ app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/shops', shopRoutes);
 app.use('/api/cart', cartRoutes);
 app.use('/api/orders', orderRoutes);
+app.use('/api/shops/manage/menu', menuRoutes);
 
 // Root check
 app.get('/', (req, res) => res.json({ message: 'CampusHub API is running' }));

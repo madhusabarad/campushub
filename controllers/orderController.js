@@ -193,3 +193,39 @@ exports.updateOrderStatus = async (req, res) => {
     });
   }
 };
+
+
+// ── GET /api/orders/shop/incoming ────────────────────────────────────────────
+// @desc   Get incoming orders for the logged-in shopkeeper's assigned shop
+// @access Private — shopkeeper only
+exports.getIncomingOrders = async (req, res) => {
+  try {
+    const shop = await Shop.findOne({ shopkeeperId: req.user.id });
+
+    if (!shop) {
+      return res.status(404).json({
+        success: false,
+        message: 'No shop is assigned to this shopkeeper.',
+      });
+    }
+
+    const orders = await Order.find({ shopId: shop._id })
+      .sort({ createdAt: -1 })
+      .populate('userId', 'name email')
+      .populate('shopId', 'name category');
+
+    return res.status(200).json({
+      success: true,
+      shop: shop.name,
+      count: orders.length,
+      data: orders,
+    });
+  } catch (err) {
+    console.error('getIncomingOrders error:', err);
+
+    return res.status(500).json({
+      success: false,
+      message: 'Server error.',
+    });
+  }
+};
