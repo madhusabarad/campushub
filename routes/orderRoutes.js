@@ -1,7 +1,8 @@
 const express = require('express');
-const router  = express.Router();
+const router = express.Router();
 
 const authMiddleware = require('../middleware/authMiddleware');
+const shopkeeperMiddleware = require('../middleware/shopkeeperMiddleware');
 const {
   createOrder,
   getUserOrders,
@@ -22,6 +23,9 @@ router.get('/', getUserOrders);
 router.get('/:id', getOrderById);
 
 // PATCH  /api/orders/:id/status   → update order status (shopkeeper — no role guard yet)
-router.patch('/:id/status', updateOrderStatus);
-
+router.patch(
+  '/:id/status',
+  shopkeeperMiddleware,
+  updateOrderStatus
+);
 module.exports = router;
