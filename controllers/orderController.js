@@ -1,6 +1,7 @@
-const Cart     = require('../models/Cart');
+const Shop = require('../models/Shop');
+const Cart = require('../models/Cart');
 const MenuItem = require('../models/MenuItem');
-const Order    = require('../models/Order');
+const Order = require('../models/Order');
 
 // ── POST /api/orders ──────────────────────────────────────────────────────────
 // @desc   Create an order from the logged-in user's current cart, then clear it
@@ -19,7 +20,7 @@ exports.createOrder = async (req, res) => {
     // Resolve each cart item to its current MenuItem doc to get name + shopId
     // We need a consistent shopId — enforce single-shop carts here
     const menuItemIds = cart.items.map((i) => i.menuItemId);
-    const menuItems   = await MenuItem.find({ _id: { $in: menuItemIds } });
+    const menuItems = await MenuItem.find({ _id: { $in: menuItemIds } });
 
     const menuItemMap = {};
     menuItems.forEach((mi) => { menuItemMap[mi._id.toString()] = mi; });
@@ -43,22 +44,22 @@ exports.createOrder = async (req, res) => {
       const menuItem = menuItemMap[cartItem.menuItemId.toString()];
       return {
         menuItemId: cartItem.menuItemId,
-        name:       menuItem.name,       // snapshot
-        quantity:   cartItem.quantity,
-        price:      cartItem.price,      // price locked at cart-add time
+        name: menuItem.name,       // snapshot
+        quantity: cartItem.quantity,
+        price: cartItem.price,      // price locked at cart-add time
       };
     });
 
     // Create and save the order
     const order = await Order.create({
-      userId:      req.user.id,
+      userId: req.user.id,
       shopId,
-      items:       orderItems,
+      items: orderItems,
       totalAmount: cart.totalAmount,
     });
 
     // Clear the cart
-    cart.items       = [];
+    cart.items = [];
     cart.totalAmount = 0;
     await cart.save();
 
@@ -119,11 +120,19 @@ exports.getOrderById = async (req, res) => {
 // ── PATCH /api/orders/:id/status ─────────────────────────────────────────────
 // @desc   Update the status of an order (shopkeeper use — role restriction TBD)
 // @access Private
+
 exports.updateOrderStatus = async (req, res) => {
   try {
     const { status } = req.body;
 
-    const allowedStatuses = ['placed', 'preparing', 'ready', 'completed', 'cancelled'];
+    const allowedStatuses = [
+      'placed',
+      'preparing',
+      'ready',
+      'completed',
+      'cancelled',
+    ];
+
     if (!status || !allowedStatuses.includes(status)) {
       return res.status(400).json({
         success: false,
@@ -134,7 +143,29 @@ exports.updateOrderStatus = async (req, res) => {
     const order = await Order.findById(req.params.id);
 
     if (!order) {
-      return res.status(404).json({ success: false, message: 'Order not found.' });
+      return res.status(404).json({
+        success: false,
+        message: 'Order not found.',
+      });
+    }
+
+    const shop = await Shop.findById(order.shopId);
+
+    if (!shop) {
+      return res.status(404).json({
+        success: false,
+        message: 'Shop associated with this order was not found.',
+      });
+    }
+
+    if (
+      !shop.shopkeeperId ||
+      shop.shopkeeperId.toString() !== req.user.id
+    ) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied. You can only update orders for your assigned shop.',
+      });
     }
 
     order.status = status;
@@ -147,9 +178,54 @@ exports.updateOrderStatus = async (req, res) => {
     });
   } catch (err) {
     if (err.kind === 'ObjectId') {
-      return res.status(400).json({ success: false, message: 'Invalid order ID.' });
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid order ID.',
+      });
     }
+
     console.error('updateOrderStatus error:', err);
-    res.status(500).json({ success: false, message: 'Server error.', error: err.message });
+
+    res.status(500).json({
+      success: false,
+      message: 'Server error.',
+      error: err.message,
+    });
+  }
+};
+
+
+// ── GET /api/orders/shop/incoming ────────────────────────────────────────────
+// @desc   Get incoming orders for the logged-in shopkeeper's assigned shop
+// @access Private — shopkeeper only
+exports.getIncomingOrders = async (req, res) => {
+  try {
+    const shop = await Shop.findOne({ shopkeeperId: req.user.id });
+
+    if (!shop) {
+      return res.status(404).json({
+        success: false,
+        message: 'No shop is assigned to this shopkeeper.',
+      });
+    }
+
+    const orders = await Order.find({ shopId: shop._id })
+      .sort({ createdAt: -1 })
+      .populate('userId', 'name email')
+      .populate('shopId', 'name category');
+
+    return res.status(200).json({
+      success: true,
+      shop: shop.name,
+      count: orders.length,
+      data: orders,
+    });
+  } catch (err) {
+    console.error('getIncomingOrders error:', err);
+
+    return res.status(500).json({
+      success: false,
+      message: 'Server error.',
+    });
   }
 };

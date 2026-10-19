@@ -1,3 +1,4 @@
+
 const mongoose = require('mongoose');
 
 const shopSchema = new mongoose.Schema(
@@ -20,6 +21,11 @@ const shopSchema = new mongoose.Schema(
     isOpen: {
       type: Boolean,
       default: false,
+    },
+    shopkeeperId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      default: null,
     },
   },
   { timestamps: true }
