@@ -11,25 +11,21 @@ const {
   getOrderById,
   getIncomingOrders,
   updateOrderStatus,
+  cancelOrder,
 } = require('../controllers/orderController');
 
-// All order routes require authentication
 router.use(authMiddleware);
 
-// Student order routes
 router.post('/', createOrder);
 router.get('/', getUserOrders);
 
-// Shopkeeper order routes — keep these before /:id
+// Shopkeeper-only order endpoints
 router.get('/shop/incoming', shopkeeperMiddleware, getIncomingOrders);
+router.patch('/:id/status', shopkeeperMiddleware, updateOrderStatus);
 
-router.patch(
-  '/:id/status',
-  shopkeeperMiddleware,
-  updateOrderStatus
-);
+// Student cancellation; the controller checks the user's role and ownership.
+router.patch('/:id/cancel', cancelOrder);
 
-// Get one of the logged-in student's own orders
 router.get('/:id', getOrderById);
 
 module.exports = router;
