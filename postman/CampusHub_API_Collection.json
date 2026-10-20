@@ -29,6 +29,10 @@
     {
       "key": "orderId",
       "value": "REPLACE_WITH_ORDER_ID"
+    },
+    {
+      "key": "xeroxRequestId",
+      "value": "REPLACE_WITH_XEROX_REQUEST_ID"
     }
   ],
   "auth": {
@@ -324,6 +328,118 @@
               "raw": "{\n  \"status\": \"preparing\"\n}"
             },
             "url": "{{baseUrl}}/api/orders/{{orderId}}/status"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Xerox",
+      "item": [
+        {
+          "name": "Get Xerox pricing",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "noauth"
+            },
+            "url": "{{baseUrl}}/api/xerox/pricing"
+          }
+        },
+        {
+          "name": "Create Xerox request (PDF upload)",
+          "request": {
+            "method": "POST",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "document",
+                  "type": "file",
+                  "src": ""
+                },
+                {
+                  "key": "numberOfCopies",
+                  "value": "1",
+                  "type": "text"
+                },
+                {
+                  "key": "colorMode",
+                  "value": "black-and-white",
+                  "type": "text"
+                },
+                {
+                  "key": "printSides",
+                  "value": "single-sided",
+                  "type": "text"
+                },
+                {
+                  "key": "paymentMethod",
+                  "value": "upi",
+                  "type": "text"
+                },
+                {
+                  "key": "includeOHP",
+                  "value": "false",
+                  "type": "text"
+                },
+                {
+                  "key": "printRange",
+                  "value": "full",
+                  "type": "text"
+                },
+                {
+                  "key": "paperSize",
+                  "value": "A4",
+                  "type": "text",
+                  "disabled": true,
+                  "description": "Optional. Only A4 is supported."
+                }
+              ]
+            },
+            "url": "{{baseUrl}}/api/xerox"
+          }
+        },
+        {
+          "name": "Get my Xerox requests",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/xerox/my-requests"
+          }
+        },
+        {
+          "name": "Get shopkeeper Xerox requests",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/xerox/shop/requests"
+          }
+        },
+        {
+          "name": "Update Xerox request status",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"accepted\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/xerox/{{xeroxRequestId}}/status"
+          }
+        },
+        {
+          "name": "Download Xerox document",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/xerox/{{xeroxRequestId}}/document"
           }
         }
       ]
