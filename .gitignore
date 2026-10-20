@@ -14,4 +14,7 @@ node_modules/
 Thumbs.db
 node_modules/
 # Private Xerox document uploads
+
+# Private Xerox document uploads
+# Private uploads
 private_uploads/
