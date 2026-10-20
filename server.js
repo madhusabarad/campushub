@@ -11,6 +11,7 @@ const cartRoutes = require('./routes/cartRoutes');
 const orderRoutes = require('./routes/orderRoutes');
 const menuRoutes = require('./routes/menuRoutes');
 const adminRoutes = require('./routes/adminRoutes');
+const xeroxRoutes = require('./routes/xeroxRoutes');
 
 // Connect to MongoDB
 connectDB();
@@ -30,6 +31,7 @@ app.use('/api/cart', cartRoutes);
 app.use('/api/orders', orderRoutes);
 app.use('/api/shops/manage/menu', menuRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/xerox', xeroxRoutes);
 
 // Root check
 app.get('/', (req, res) => res.json({ message: 'CampusHub API is running' }));

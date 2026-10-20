@@ -13,6 +13,8 @@ node_modules/
 .DS_Store
 Thumbs.db
 node_modules/
+# Private Xerox document uploads
 
-# Private uploads, including Xerox documents
+# Private Xerox document uploads
+# Private uploads
 private_uploads/
