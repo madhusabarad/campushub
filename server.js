@@ -1,31 +1,52 @@
 require('dotenv').config();
 const express = require('express');
-const mongoose = require('mongoose');
+const connectDB = require('./config/db');
+const errorHandler = require('./middleware/errorHandler');
 
+const healthRoutes = require('./routes/healthRoutes');
+const authRoutes = require('./routes/authRoutes');
 const dashboardRoutes = require('./routes/dashboardRoutes');
-const shopRoutes     = require('./routes/shopRoutes');
+const shopRoutes = require('./routes/shopRoutes');
+const cartRoutes = require('./routes/cartRoutes');
+const orderRoutes = require('./routes/orderRoutes');
+const menuRoutes = require('./routes/menuRoutes');
+const adminRoutes = require('./routes/adminRoutes');
+const xeroxRoutes = require('./routes/xeroxRoutes');
+
+// Connect to MongoDB
+connectDB();
 
 const app = express();
 
-// ── Body Parsing ─────────────────────────────────────────────────────────────
+// Body parsers
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
-// ── Database Connection ───────────────────────────────────────────────────────
-mongoose
-  .connect(process.env.MONGO_URI)
-  .then(() => console.log('MongoDB connected'))
-  .catch((err) => {
-    console.error('MongoDB connection error:', err.message);
-    process.exit(1);
-  });
-
-// ── Routes ────────────────────────────────────────────────────────────────────
+// Routes
+app.use('/api', healthRoutes);
+app.use('/api/auth', authRoutes);
 app.use('/api/dashboard', dashboardRoutes);
-app.use('/api/shops',     shopRoutes);
+app.use('/api/shops', shopRoutes);
+app.use('/api/cart', cartRoutes);
+app.use('/api/orders', orderRoutes);
+app.use('/api/shops/manage/menu', menuRoutes);
+app.use('/api/admin', adminRoutes);
+app.use('/api/xerox', xeroxRoutes);
 
-// ── Health Check ──────────────────────────────────────────────────────────────
+// Root check
 app.get('/', (req, res) => res.json({ message: 'CampusHub API is running' }));
 
-// ── Start Server ──────────────────────────────────────────────────────────────
-const PORT = process.env.PORT || 5001;
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+// 404 handler
+app.use((req, res) => {
+  res.status(404).json({ message: 'Route not found' });
+});
+
+// Centralized error handler
+app.use(errorHandler);
+
+const PORT = process.env.PORT || 5000;
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT} in ${process.env.NODE_ENV || 'development'} mode`);
+});
+
+module.exports = app;

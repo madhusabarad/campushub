@@ -1,0 +1,448 @@
+{
+  "info": {
+    "_postman_id": "d8a1f2c7-6b31-4a85-9d20-campushubapi",
+    "name": "CampusHub API",
+    "description": "API collection for CampusHub. Based on the routes registered on the dev branch. Set baseUrl and use Login to capture a JWT token before calling protected endpoints. Public registration only creates student accounts.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:5001"
+    },
+    {
+      "key": "token",
+      "value": ""
+    },
+    {
+      "key": "shopId",
+      "value": "REPLACE_WITH_SHOP_ID"
+    },
+    {
+      "key": "menuItemId",
+      "value": "REPLACE_WITH_MENU_ITEM_ID"
+    },
+    {
+      "key": "cartItemId",
+      "value": "REPLACE_WITH_CART_ITEM_SUBDOCUMENT_ID"
+    },
+    {
+      "key": "orderId",
+      "value": "REPLACE_WITH_ORDER_ID"
+    },
+    {
+      "key": "xeroxRequestId",
+      "value": "REPLACE_WITH_XEROX_REQUEST_ID"
+    }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "item": [
+    {
+      "name": "Health",
+      "item": [
+        {
+          "name": "API health check",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/health"
+          }
+        },
+        {
+          "name": "Root status",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Authentication",
+      "item": [
+        {
+          "name": "Register student",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Example Student\",\n  \"email\": \"student@example.com\",\n  \"password\": \"ReplaceWithYourPassword\",\n  \"collegeId\": \"COLLEGE123\"\n}"
+            },
+            "url": "{{baseUrl}}/api/auth/register"
+          }
+        },
+        {
+          "name": "Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "  const data = pm.response.json();",
+                  "  if (data.token) {",
+                  "    pm.collectionVariables.set('token', data.token);",
+                  "    console.log('JWT token saved to collection variables.');",
+                  "  }",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"student@example.com\",\n  \"password\": \"ReplaceWithYourPassword\"\n}"
+            },
+            "url": "{{baseUrl}}/api/auth/login"
+          }
+        },
+        {
+          "name": "Dashboard",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/dashboard"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Shops and Menus",
+      "item": [
+        {
+          "name": "List shops",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/shops"
+          }
+        },
+        {
+          "name": "List a shop's menu",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/shops/{{shopId}}/menu"
+          }
+        },
+        {
+          "name": "Open or close assigned shop",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"isOpen\": true\n}"
+            },
+            "url": "{{baseUrl}}/api/shops/manage/status"
+          }
+        },
+        {
+          "name": "Create menu item",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Example Item\",\n  \"price\": 25,\n  \"category\": \"Snacks\"\n}"
+            },
+            "url": "{{baseUrl}}/api/shops/manage/menu"
+          }
+        },
+        {
+          "name": "Update menu item",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Updated Item\",\n  \"price\": 30,\n  \"category\": \"Snacks\"\n}"
+            },
+            "url": "{{baseUrl}}/api/shops/manage/menu/{{menuItemId}}"
+          }
+        },
+        {
+          "name": "Update menu item availability",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"isAvailable\": false\n}"
+            },
+            "url": "{{baseUrl}}/api/shops/manage/menu/{{menuItemId}}/availability"
+          }
+        },
+        {
+          "name": "Delete menu item",
+          "request": {
+            "method": "DELETE",
+            "url": "{{baseUrl}}/api/shops/manage/menu/{{menuItemId}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Cart",
+      "item": [
+        {
+          "name": "Get cart",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/cart"
+          }
+        },
+        {
+          "name": "Add item to cart",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"menuItemId\": \"{{menuItemId}}\",\n  \"quantity\": 1\n}"
+            },
+            "url": "{{baseUrl}}/api/cart/add"
+          }
+        },
+        {
+          "name": "Update cart item quantity",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"quantity\": 2\n}"
+            },
+            "url": "{{baseUrl}}/api/cart/item/{{cartItemId}}"
+          }
+        },
+        {
+          "name": "Remove cart item",
+          "request": {
+            "method": "DELETE",
+            "url": "{{baseUrl}}/api/cart/item/{{cartItemId}}"
+          }
+        },
+        {
+          "name": "Clear cart",
+          "request": {
+            "method": "DELETE",
+            "url": "{{baseUrl}}/api/cart"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Orders",
+      "item": [
+        {
+          "name": "Place order from current cart",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/orders"
+          }
+        },
+        {
+          "name": "Get my orders",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/orders"
+          }
+        },
+        {
+          "name": "Get order by ID",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/orders/{{orderId}}"
+          }
+        },
+        {
+          "name": "Get incoming orders (shopkeeper)",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/orders/shop/incoming"
+          }
+        },
+        {
+          "name": "Update order status (shopkeeper)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"preparing\"\n}"
+            },
+            "url": "{{baseUrl}}/api/orders/{{orderId}}/status"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Xerox",
+      "item": [
+        {
+          "name": "Get Xerox pricing",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "noauth"
+            },
+            "url": "{{baseUrl}}/api/xerox/pricing"
+          }
+        },
+        {
+          "name": "Create Xerox request (PDF upload)",
+          "request": {
+            "method": "POST",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "document",
+                  "type": "file",
+                  "src": ""
+                },
+                {
+                  "key": "numberOfCopies",
+                  "value": "1",
+                  "type": "text"
+                },
+                {
+                  "key": "colorMode",
+                  "value": "black-and-white",
+                  "type": "text"
+                },
+                {
+                  "key": "printSides",
+                  "value": "single-sided",
+                  "type": "text"
+                },
+                {
+                  "key": "paymentMethod",
+                  "value": "upi",
+                  "type": "text"
+                },
+                {
+                  "key": "includeOHP",
+                  "value": "false",
+                  "type": "text"
+                },
+                {
+                  "key": "printRange",
+                  "value": "full",
+                  "type": "text"
+                },
+                {
+                  "key": "paperSize",
+                  "value": "A4",
+                  "type": "text",
+                  "disabled": true,
+                  "description": "Optional. Only A4 is supported."
+                }
+              ]
+            },
+            "url": "{{baseUrl}}/api/xerox"
+          }
+        },
+        {
+          "name": "Get my Xerox requests",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/xerox/my-requests"
+          }
+        },
+        {
+          "name": "Get shopkeeper Xerox requests",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/xerox/shop/requests"
+          }
+        },
+        {
+          "name": "Update Xerox request status",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"accepted\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/xerox/{{xeroxRequestId}}/status"
+          }
+        },
+        {
+          "name": "Download Xerox document",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/xerox/{{xeroxRequestId}}/document"
+          }
+        }
+      ]
+    }
+  ]
+}
