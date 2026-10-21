@@ -21,6 +21,11 @@ const shopSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    shopkeeperId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      default: null,
+    },
   },
   { timestamps: true }
 );
