@@ -1,8 +1,23 @@
+<<<<<<< HEAD
+# Dependencies
+node_modules/
+frontend/node_modules/
+
+# Environment secrets
+.env
+.env.*
+!.env.example
+
+=======
+>>>>>>> origin/main
 # Logs
 logs/
 *.log
 npm-debug.log*
 
+<<<<<<< HEAD
+# OS files
+=======
 # Dependencies
 node_modules/
 
@@ -10,6 +25,7 @@ node_modules/
 .env
 
 # OS
+>>>>>>> origin/main
 .DS_Store
 Thumbs.db
 node_modules/
