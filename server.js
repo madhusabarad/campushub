@@ -10,6 +10,7 @@ const shopRoutes = require('./routes/shopRoutes');
 const cartRoutes = require('./routes/cartRoutes');
 const orderRoutes = require('./routes/orderRoutes');
 const menuRoutes = require('./routes/menuRoutes');
+const adminRoutes = require('./routes/adminRoutes');
 const xeroxRoutes = require('./routes/xeroxRoutes');
 
 // Connect to MongoDB
@@ -29,6 +30,7 @@ app.use('/api/shops', shopRoutes);
 app.use('/api/cart', cartRoutes);
 app.use('/api/orders', orderRoutes);
 app.use('/api/shops/manage/menu', menuRoutes);
+app.use('/api/admin', adminRoutes);
 app.use('/api/xerox', xeroxRoutes);
 
 // Root check
