@@ -1,5 +1,4 @@
 const mongoose = require('mongoose');
-<<<<<<< HEAD
 const bcrypt = require('bcryptjs');
 
 const userSchema = new mongoose.Schema(
@@ -15,6 +14,7 @@ const userSchema = new mongoose.Schema(
       unique: true,
       lowercase: true,
       trim: true,
+      match: [/^\S+@\S+\.\S+$/, 'Please enter a valid email'],
     },
     password: {
       type: String,
@@ -24,7 +24,7 @@ const userSchema = new mongoose.Schema(
     },
     role: {
       type: String,
-      enum: ['student', 'faculty', 'admin'],
+      enum: ['student', 'faculty', 'shopkeeper', 'admin'],
       default: 'student',
     },
   },
@@ -43,26 +43,5 @@ userSchema.pre('save', async function (next) {
 userSchema.methods.matchPassword = async function (enteredPassword) {
   return bcrypt.compare(enteredPassword, this.password);
 };
-=======
-
-const userSchema = new mongoose.Schema({
-  name: { type: String, required: true, trim: true },
-  email: {
-    type: String,
-    required: true,
-    unique: true,
-    lowercase: true,
-    trim: true,
-    match: [/^\S+@\S+\.\S+$/, 'Please enter a valid email']
-  },
-  password: { type: String, required: true, minlength: 6, select: false },
-  role: {
-    type: String,
-    enum: ['student', 'shopkeeper', 'admin'],
-    required: true
-  },
-  collegeId: { type: String, required: true, trim: true }
-}, { timestamps: true });
->>>>>>> origin/main
 
 module.exports = mongoose.model('User', userSchema);
