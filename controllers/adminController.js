@@ -1,12 +1,12 @@
-
 const mongoose = require('mongoose');
 const User = require('../models/User');
 const Shop = require('../models/Shop');
 const Order = require('../models/Order');
+const { buildRevenuePerShop } = require('../utils/adminAnalytics');
 
-// @desc    List all users
-// @route   GET /api/admin/users
-// @access  Admin
+// @desc List all users
+// @route GET /api/admin/users
+// @access Admin
 const getAllUsers = async (req, res) => {
     try {
         const users = await User.find()
@@ -28,9 +28,9 @@ const getAllUsers = async (req, res) => {
     }
 };
 
-// @desc    List all shops and their assigned shopkeepers
-// @route   GET /api/admin/shops
-// @access  Admin
+// @desc List all shops and their assigned shopkeepers
+// @route GET /api/admin/shops
+// @access Admin
 const getAllShops = async (req, res) => {
     try {
         const shops = await Shop.find()
@@ -52,9 +52,9 @@ const getAllShops = async (req, res) => {
     }
 };
 
-// @desc    Assign a shopkeeper to a shop
-// @route   PATCH /api/admin/shops/:shopId/assign-shopkeeper
-// @access  Admin
+// @desc Assign a shopkeeper to a shop
+// @route PATCH /api/admin/shops/:shopId/assign-shopkeeper
+// @access Admin
 const assignShopkeeper = async (req, res) => {
     try {
         const { shopId } = req.params;
@@ -115,9 +115,9 @@ const assignShopkeeper = async (req, res) => {
     }
 };
 
-// @desc    List all orders
-// @route   GET /api/admin/orders
-// @access  Admin
+// @desc List all orders
+// @route GET /api/admin/orders
+// @access Admin
 const getAllOrders = async (req, res) => {
     try {
         const orders = await Order.find()
@@ -140,6 +140,9 @@ const getAllOrders = async (req, res) => {
     }
 };
 
+// @desc Get admin dashboard statistics and sales analytics
+// @route GET /api/admin/stats
+// @access Admin
 const getAdminStats = async (req, res) => {
     try {
         const [
@@ -155,6 +158,9 @@ const getAdminStats = async (req, res) => {
             completedOrders,
             cancelledOrders,
             orderTotals,
+            revenuePerShop,
+            popularItems,
+            dailyOrders,
         ] = await Promise.all([
             User.countDocuments(),
             User.countDocuments({ role: 'student' }),
@@ -167,6 +173,8 @@ const getAdminStats = async (req, res) => {
             Order.countDocuments({ status: 'ready' }),
             Order.countDocuments({ status: 'completed' }),
             Order.countDocuments({ status: 'cancelled' }),
+
+            // Exclude cancelled orders from order value.
             Order.aggregate([
                 { $match: { status: { $ne: 'cancelled' } } },
                 {
@@ -176,7 +184,116 @@ const getAdminStats = async (req, res) => {
                     },
                 },
             ]),
+
+            // Revenue per shop, including shops with no qualifying orders.
+            Order.aggregate([
+                { $match: { status: { $ne: 'cancelled' } } },
+                {
+                    $group: {
+                        _id: '$shopId',
+                        revenue: { $sum: '$totalAmount' },
+                        orderCount: { $sum: 1 },
+                    },
+                },
+                {
+                    $lookup: {
+                        from: Shop.collection.name,
+                        localField: '_id',
+                        foreignField: '_id',
+                        as: 'shop',
+                    },
+                },
+                {
+                    $unwind: {
+                        path: '$shop',
+                        preserveNullAndEmptyArrays: true,
+                    },
+                },
+                {
+                    $project: {
+                        _id: 0,
+                        shopId: '$_id',
+                        shopName: { $ifNull: ['$shop.name', 'Unknown shop'] },
+                        revenue: 1,
+                        orderCount: 1,
+                    },
+                },
+                { $sort: { revenue: -1, shopName: 1 } },
+            ]),
+
+            // Rank items by total quantity ordered.
+            Order.aggregate([
+                { $match: { status: { $ne: 'cancelled' } } },
+                { $unwind: '$items' },
+                {
+                    $group: {
+                        _id: {
+                            menuItemId: '$items.menuItemId',
+                            name: '$items.name',
+                        },
+                        quantitySold: { $sum: '$items.quantity' },
+                        revenue: {
+                            $sum: {
+                                $multiply: [
+                                    '$items.price',
+                                    '$items.quantity',
+                                ],
+                            },
+                        },
+                    },
+                },
+                {
+                    $project: {
+                        _id: 0,
+                        menuItemId: '$_id.menuItemId',
+                        name: '$_id.name',
+                        quantitySold: 1,
+                        revenue: 1,
+                    },
+                },
+                { $sort: { quantitySold: -1, name: 1 } },
+                { $limit: 10 },
+            ]),
+
+            // Count orders per calendar day (UTC).
+            Order.aggregate([
+                {
+                    $match: {
+                        createdAt: { $type: 'date' },
+                    },
+                },
+                {
+                    $group: {
+                        _id: {
+                            $dateToString: {
+                                format: '%Y-%m-%d',
+                                date: '$createdAt',
+                                timezone: 'UTC',
+                            },
+                        },
+                        count: { $sum: 1 },
+                    },
+                },
+                {
+                    $project: {
+                        _id: 0,
+                        date: '$_id',
+                        count: 1,
+                    },
+                },
+                { $sort: { date: 1 } },
+            ]),
         ]);
+
+        // Include every shop, even if it has no non-cancelled orders.
+        const shops = await Shop.find()
+            .select('_id name')
+            .lean();
+
+        const completeRevenuePerShop = buildRevenuePerShop(
+            shops,
+            revenuePerShop
+        );
 
         return res.status(200).json({
             success: true,
@@ -200,6 +317,9 @@ const getAdminStats = async (req, res) => {
                     cancelled: cancelledOrders,
                 },
                 totalOrderValue: orderTotals[0]?.totalOrderValue || 0,
+                revenuePerShop: completeRevenuePerShop,
+                popularItems,
+                dailyOrders,
             },
         });
     } catch (error) {
