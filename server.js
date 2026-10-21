@@ -26,10 +26,12 @@ app.use(express.urlencoded({ extended: true }));
 app.use('/api', healthRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/dashboard', dashboardRoutes);
+// menuRoutes must come BEFORE shopRoutes, otherwise /api/shops/manage/menu
+// is caught by shopRoutes' /:id/menu route
+app.use('/api/shops/manage/menu', menuRoutes);
 app.use('/api/shops', shopRoutes);
 app.use('/api/cart', cartRoutes);
 app.use('/api/orders', orderRoutes);
-app.use('/api/shops/manage/menu', menuRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/xerox', xeroxRoutes);
 

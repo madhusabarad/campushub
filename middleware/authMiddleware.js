@@ -1,24 +1,27 @@
 const jwt = require('jsonwebtoken');
 
-// @desc   Verify JWT and attach decoded user to req.user
-// @usage  Apply to any route that requires authentication
-const authMiddleware = (req, res, next) => {
-  // Expect: Authorization: Bearer <token>
+/**
+ * Verify a JWT Bearer token and attach the decoded payload to req.user.
+ * Exported both as the default export and as { protect }, so
+ * `const protect = require(...)` and `const { protect } = require(...)` both work.
+ */
+const protect = (req, res, next) => {
   const authHeader = req.headers.authorization;
 
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    return res.status(401).json({ success: false, message: 'No token provided. Authorization denied.' });
+    return res.status(401).json({ success: false, message: 'Not authorized. No token provided.' });
   }
 
   const token = authHeader.split(' ')[1];
 
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    req.user = decoded; // { id, role, iat, exp }
+    req.user = decoded; // { id, role, iat, exp, ... }
     next();
   } catch (err) {
-    return res.status(401).json({ success: false, message: 'Token is invalid or expired.' });
+    return res.status(401).json({ success: false, message: 'Not authorized. Token is invalid or expired.' });
   }
 };
 
-module.exports = authMiddleware;
+module.exports = protect;
+module.exports.protect = protect;
