@@ -27,6 +27,7 @@ const userSchema = new mongoose.Schema(
       enum: ['student', 'faculty', 'shopkeeper', 'admin'],
       default: 'student',
     },
+    collegeId: { type: String, required: true, trim: true },
   },
   { timestamps: true }
 );
