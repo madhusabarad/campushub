@@ -1,38 +1,17 @@
 require('dotenv').config();
 const express = require('express');
-<<<<<<< HEAD
-const mongoose = require('mongoose');
-
-const dashboardRoutes = require('./routes/dashboardRoutes');
-const shopRoutes     = require('./routes/shopRoutes');
-
-const app = express();
-
-// ── Body Parsing ─────────────────────────────────────────────────────────────
-app.use(express.json());
-
-// ── Database Connection ───────────────────────────────────────────────────────
-mongoose
-  .connect(process.env.MONGO_URI)
-  .then(() => console.log('MongoDB connected'))
-  .catch((err) => {
-    console.error('MongoDB connection error:', err.message);
-    process.exit(1);
-  });
-
-// ── Routes ────────────────────────────────────────────────────────────────────
-app.use('/api/dashboard', dashboardRoutes);
-app.use('/api/shops',     shopRoutes);
-
-// ── Health Check ──────────────────────────────────────────────────────────────
-app.get('/', (req, res) => res.json({ message: 'CampusHub API is running' }));
-
-// ── Start Server ──────────────────────────────────────────────────────────────
-const PORT = process.env.PORT || 5001;
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
-=======
 const connectDB = require('./config/db');
 const errorHandler = require('./middleware/errorHandler');
+
+const healthRoutes = require('./routes/healthRoutes');
+const authRoutes = require('./routes/authRoutes');
+const dashboardRoutes = require('./routes/dashboardRoutes');
+const shopRoutes = require('./routes/shopRoutes');
+const cartRoutes = require('./routes/cartRoutes');
+const orderRoutes = require('./routes/orderRoutes');
+const menuRoutes = require('./routes/menuRoutes');
+const adminRoutes = require('./routes/adminRoutes');
+const xeroxRoutes = require('./routes/xeroxRoutes');
 
 // Connect to MongoDB
 connectDB();
@@ -44,11 +23,20 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // Routes
-const healthRoutes = require('./routes/healthRoutes');
 app.use('/api', healthRoutes);
-
-const authRoutes = require('./routes/authRoutes');
 app.use('/api/auth', authRoutes);
+app.use('/api/dashboard', dashboardRoutes);
+// menuRoutes must come BEFORE shopRoutes, otherwise /api/shops/manage/menu
+// is caught by shopRoutes' /:id/menu route
+app.use('/api/shops/manage/menu', menuRoutes);
+app.use('/api/shops', shopRoutes);
+app.use('/api/cart', cartRoutes);
+app.use('/api/orders', orderRoutes);
+app.use('/api/admin', adminRoutes);
+app.use('/api/xerox', xeroxRoutes);
+
+// Root check
+app.get('/', (req, res) => res.json({ message: 'CampusHub API is running' }));
 
 // 404 handler
 app.use((req, res) => {
@@ -64,4 +52,3 @@ app.listen(PORT, () => {
 });
 
 module.exports = app;
->>>>>>> origin/main
