@@ -11,6 +11,7 @@ const {
     getMyXeroxRequests,
     getShopkeeperRequests,
     updateXeroxStatus,
+    markXeroxPaymentPaid,
     downloadXeroxDocument,
 } = require('../controllers/xeroxController');
 
@@ -62,6 +63,14 @@ router.patch(
     authMiddleware,
     shopkeeperMiddleware,
     updateXeroxStatus
+);
+
+// Assigned shopkeepers confirm payment after completing a request.
+router.patch(
+    '/:id/payment',
+    authMiddleware,
+    shopkeeperMiddleware,
+    markXeroxPaymentPaid
 );
 
 // Students can access their own documents; assigned shopkeepers and admins

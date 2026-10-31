@@ -35,15 +35,12 @@ const register = async (req, res) => {
       });
     }
 
-    // Hash password
-    const salt = await bcrypt.genSalt(12);
-    const hashedPassword = await bcrypt.hash(password, salt);
-
+    // User model pre-save hook handles password hashing.
     // Always create a student account through public registration
     const user = await User.create({
       name,
       email,
-      password: hashedPassword,
+      password,
       role: 'student',
       collegeId,
     });
