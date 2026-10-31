@@ -33,6 +33,10 @@
     {
       "key": "xeroxRequestId",
       "value": "REPLACE_WITH_XEROX_REQUEST_ID"
+    },
+    {
+      "key": "shopkeeperId",
+      "value": "REPLACE_WITH_SHOPKEEPER_ID"
     }
   ],
   "auth": {
@@ -53,14 +57,20 @@
           "name": "API health check",
           "request": {
             "method": "GET",
-            "url": "{{baseUrl}}/api/health"
+            "url": "{{baseUrl}}/api/health",
+            "auth": {
+              "type": "noauth"
+            }
           }
         },
         {
           "name": "Root status",
           "request": {
             "method": "GET",
-            "url": "{{baseUrl}}/"
+            "url": "{{baseUrl}}/",
+            "auth": {
+              "type": "noauth"
+            }
           }
         }
       ]
@@ -82,7 +92,10 @@
               "mode": "raw",
               "raw": "{\n  \"name\": \"Example Student\",\n  \"email\": \"student@example.com\",\n  \"password\": \"ReplaceWithYourPassword\",\n  \"collegeId\": \"COLLEGE123\"\n}"
             },
-            "url": "{{baseUrl}}/api/auth/register"
+            "url": "{{baseUrl}}/api/auth/register",
+            "auth": {
+              "type": "noauth"
+            }
           }
         },
         {
@@ -116,7 +129,10 @@
               "mode": "raw",
               "raw": "{\n  \"email\": \"student@example.com\",\n  \"password\": \"ReplaceWithYourPassword\"\n}"
             },
-            "url": "{{baseUrl}}/api/auth/login"
+            "url": "{{baseUrl}}/api/auth/login",
+            "auth": {
+              "type": "noauth"
+            }
           }
         },
         {
@@ -135,15 +151,57 @@
           "name": "List shops",
           "request": {
             "method": "GET",
-            "url": "{{baseUrl}}/api/shops"
-          }
+            "url": "{{baseUrl}}/api/shops",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const response = pm.response.json();",
+                  "",
+                  "    if (response.success && response.data.length > 0) {",
+                  "        pm.collectionVariables.set(\"shopId\", response.data[0]._id);",
+                  "        console.log(\"Shop ID saved.\");",
+                  "    }",
+                  "}"
+                ]
+              }
+            }
+          ]
         },
         {
           "name": "List a shop's menu",
           "request": {
             "method": "GET",
-            "url": "{{baseUrl}}/api/shops/{{shopId}}/menu"
-          }
+            "url": "{{baseUrl}}/api/shops/{{shopId}}/menu",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const response = pm.response.json();",
+                  "",
+                  "    if (response.success && response.data.length > 0) {",
+                  "        pm.collectionVariables.set(\"menuItemId\", response.data[0]._id);",
+                  "        console.log(\"Menu item ID saved.\");",
+                  "    }",
+                  "}"
+                ]
+              }
+            }
+          ]
         },
         {
           "name": "Open or close assigned shop",
@@ -247,7 +305,25 @@
               "raw": "{\n  \"menuItemId\": \"{{menuItemId}}\",\n  \"quantity\": 1\n}"
             },
             "url": "{{baseUrl}}/api/cart/add"
-          }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const response = pm.response.json();",
+                  "",
+                  "    if (response.success && response.data?.items?.length > 0) {",
+                  "        pm.collectionVariables.set(\"cartItemId\", response.data.items[0]._id);",
+                  "        console.log(\"Cart item ID saved.\");",
+                  "    }",
+                  "}"
+                ]
+              }
+            }
+          ]
         },
         {
           "name": "Update cart item quantity",
@@ -290,7 +366,25 @@
           "request": {
             "method": "POST",
             "url": "{{baseUrl}}/api/orders"
-          }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const response = pm.response.json();",
+                  "",
+                  "    if (response.success && response.data?._id) {",
+                  "        pm.collectionVariables.set(\"orderId\", response.data._id);",
+                  "        console.log(\"Order ID saved.\");",
+                  "    }",
+                  "}"
+                ]
+              }
+            }
+          ]
         },
         {
           "name": "Get my orders",
@@ -328,6 +422,13 @@
               "raw": "{\n  \"status\": \"preparing\"\n}"
             },
             "url": "{{baseUrl}}/api/orders/{{orderId}}/status"
+          }
+        },
+        {
+          "name": "Cancel order (student)",
+          "request": {
+            "method": "PATCH",
+            "url": "{{baseUrl}}/api/orders/{{orderId}}/cancel"
           }
         }
       ]
@@ -397,7 +498,25 @@
               ]
             },
             "url": "{{baseUrl}}/api/xerox"
-          }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const response = pm.response.json();",
+                  "",
+                  "    if (response.success && response.request?._id) {",
+                  "        pm.collectionVariables.set(\"xeroxRequestId\", response.request._id);",
+                  "        console.log(\"Xerox request ID saved.\");",
+                  "    }",
+                  "}"
+                ]
+              }
+            }
+          ]
         },
         {
           "name": "Get my Xerox requests",
@@ -440,6 +559,92 @@
           "request": {
             "method": "GET",
             "url": "{{baseUrl}}/api/xerox/{{xeroxRequestId}}/document"
+          }
+        },
+        {
+          "name": "Confirm Xerox payment (shopkeeper)",
+          "request": {
+            "method": "PATCH",
+            "url": "{{baseUrl}}/api/xerox/{{xeroxRequestId}}/payment"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Admin",
+      "item": [
+        {
+          "name": "Get admin statistics",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/admin/stats"
+          }
+        },
+        {
+          "name": "List all users",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/admin/users"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const response = pm.response.json();",
+                  "",
+                  "    if (response.success && response.data) {",
+                  "        const shopkeeper = response.data.find(",
+                  "            user => user.role === \"shopkeeper\"",
+                  "        );",
+                  "",
+                  "        if (shopkeeper) {",
+                  "            pm.collectionVariables.set(\"shopkeeperId\", shopkeeper._id);",
+                  "            console.log(\"Shopkeeper ID saved.\");",
+                  "        }",
+                  "    }",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List all shops",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/admin/shops"
+          }
+        },
+        {
+          "name": "Assign shopkeeper to shop",
+          "request": {
+            "method": "PATCH",
+            "url": "{{baseUrl}}/api/admin/shops/{{shopId}}/assign-shopkeeper",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"shopkeeperId\": \"{{shopkeeperId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "List all orders (admin)",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/admin/orders"
           }
         }
       ]
