@@ -1,10 +1,13 @@
-
 const fs = require('fs/promises');
 const path = require('path');
 const mongoose = require('mongoose');
+
 const Xerox = require('../models/Xerox');
+const User = require('../models/User');
+
 const { uploadDirectory } = require('../middleware/xeroxUploadMiddleware');
 const { inspectXeroxPdf } = require('../utils/xeroxPdf');
+
 const {
     calculateXeroxPrice,
     PRINT_RATES,
@@ -12,6 +15,25 @@ const {
 } = require('../utils/xeroxPricing');
 
 const MAX_COPIES = 100;
+const DEFAULT_LIMIT = 10;
+const MAX_LIMIT = 100;
+
+const XEROX_STATUSES = [
+    'pending',
+    'accepted',
+    'rejected',
+    'printing',
+    'ready-for-pickup',
+    'completed',
+    'cancelled',
+];
+
+const PAYMENT_STATUSES = [
+    'pending',
+    'paid',
+    'failed',
+    'refunded',
+];
 
 function apiError(status, message) {
     const error = new Error(message);
@@ -36,6 +58,126 @@ function parseBoolean(value, fieldName) {
     throw apiError(400, `${fieldName} must be true or false.`);
 }
 
+function getPagination(query) {
+    const page = query.page === undefined ? 1 : Number(query.page);
+    const limit =
+        query.limit === undefined ? DEFAULT_LIMIT : Number(query.limit);
+
+    if (
+        !Number.isSafeInteger(page) ||
+        page < 1 ||
+        !Number.isSafeInteger(limit) ||
+        limit < 1 ||
+        limit > MAX_LIMIT
+    ) {
+        throw apiError(
+            400,
+            `page must be positive and limit must be between 1 and ${MAX_LIMIT}.`
+        );
+    }
+
+    const skip = (page - 1) * limit;
+
+    if (!Number.isSafeInteger(skip)) {
+        throw apiError(400, 'Requested page is too large.');
+    }
+
+    return { page, limit, skip };
+}
+
+function escapeRegex(value) {
+    return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function getDateFilter(query) {
+    const filter = {};
+
+    if (query.from !== undefined) {
+        if (
+            typeof query.from !== 'string' ||
+            !query.from.trim()
+        ) {
+            throw apiError(400, 'from must be a valid date.');
+        }
+
+        const fromValue = query.from.trim();
+        const from = new Date(fromValue);
+
+        if (Number.isNaN(from.getTime())) {
+            throw apiError(400, 'from must be a valid date.');
+        }
+
+        if (/^\d{4}-\d{2}-\d{2}$/.test(fromValue)) {
+            const [year, month, day] = fromValue.split('-').map(Number);
+
+            if (
+                from.getUTCFullYear() !== year ||
+                from.getUTCMonth() !== month - 1 ||
+                from.getUTCDate() !== day
+            ) {
+                throw apiError(400, 'from must be a valid date.');
+            }
+
+            from.setUTCHours(0, 0, 0, 0);
+        }
+
+        filter.$gte = from;
+    }
+
+    if (query.to !== undefined) {
+        if (
+            typeof query.to !== 'string' ||
+            !query.to.trim()
+        ) {
+            throw apiError(400, 'to must be a valid date.');
+        }
+
+        const toValue = query.to.trim();
+        const to = new Date(toValue);
+
+        if (Number.isNaN(to.getTime())) {
+            throw apiError(400, 'to must be a valid date.');
+        }
+
+        if (/^\d{4}-\d{2}-\d{2}$/.test(toValue)) {
+            const [year, month, day] = toValue.split('-').map(Number);
+
+            if (
+                to.getUTCFullYear() !== year ||
+                to.getUTCMonth() !== month - 1 ||
+                to.getUTCDate() !== day
+            ) {
+                throw apiError(400, 'to must be a valid date.');
+            }
+
+            to.setUTCHours(23, 59, 59, 999);
+        }
+
+        filter.$lte = to;
+    }
+
+    if (
+        filter.$gte &&
+        filter.$lte &&
+        filter.$gte > filter.$lte
+    ) {
+        throw apiError(400, 'from cannot be later than to.');
+    }
+
+    return filter;
+}
+
+function validateFilter(value, allowedValues, fieldName) {
+    if (value === undefined) return;
+
+    if (
+        typeof value !== 'string' ||
+        !allowedValues.includes(value)
+    ) {
+        throw apiError(400, `Invalid ${fieldName}.`);
+    }
+}
+
 async function removeUploadedFile(filePath) {
     if (!filePath) return;
 
@@ -43,7 +185,10 @@ async function removeUploadedFile(filePath) {
         await fs.unlink(filePath);
     } catch (error) {
         if (error.code !== 'ENOENT') {
-            console.error('Could not remove uploaded Xerox file:', error.message);
+            console.error(
+                'Could not remove uploaded Xerox file:',
+                error.message
+            );
         }
     }
 }
@@ -71,7 +216,21 @@ function getSafeRequest(request) {
     };
 }
 
+function getPaginationMetadata(page, limit, total) {
+    const totalPages = Math.ceil(total / limit);
+
+    return {
+        page,
+        limit,
+        total,
+        totalPages,
+        hasNextPage: page < totalPages,
+        hasPrevPage: page > 1,
+    };
+}
+
 // GET /api/xerox/pricing
+
 const getPricing = (req, res) => {
     res.json({
         success: true,
@@ -85,17 +244,20 @@ const getPricing = (req, res) => {
 };
 
 // POST /api/xerox
+
 const createXeroxRequest = async (req, res, next) => {
     let uploadedPath;
 
     try {
         if (!req.file) {
-            throw apiError(400, 'Please upload a PDF using the document field.');
+            throw apiError(
+                400,
+                'Please upload a PDF using the document field.'
+            );
         }
 
         uploadedPath = req.file.path;
 
-        // The uploaded file is parsed on the server; never trust a client page count.
         const { totalPages } = await inspectXeroxPdf(uploadedPath);
 
         const colorMode = req.body.colorMode;
@@ -108,7 +270,10 @@ const createXeroxRequest = async (req, res, next) => {
         );
 
         if (numberOfCopies > MAX_COPIES) {
-            throw apiError(400, `A maximum of ${MAX_COPIES} copies is allowed.`);
+            throw apiError(
+                400,
+                `A maximum of ${MAX_COPIES} copies is allowed.`
+            );
         }
 
         if (!['black-and-white', 'color'].includes(colorMode)) {
@@ -135,7 +300,10 @@ const createXeroxRequest = async (req, res, next) => {
         const printRange = req.body.printRange || 'full';
 
         if (!['full', 'selected-pages'].includes(printRange)) {
-            throw apiError(400, 'printRange must be full or selected-pages.');
+            throw apiError(
+                400,
+                'printRange must be full or selected-pages.'
+            );
         }
 
         let startPage;
@@ -145,8 +313,15 @@ const createXeroxRequest = async (req, res, next) => {
             startPage = 1;
             endPage = totalPages;
         } else {
-            startPage = parsePositiveInteger(req.body.startPage, 'startPage');
-            endPage = parsePositiveInteger(req.body.endPage, 'endPage');
+            startPage = parsePositiveInteger(
+                req.body.startPage,
+                'startPage'
+            );
+
+            endPage = parsePositiveInteger(
+                req.body.endPage,
+                'endPage'
+            );
 
             if (startPage > endPage || endPage > totalPages) {
                 throw apiError(
@@ -173,7 +348,6 @@ const createXeroxRequest = async (req, res, next) => {
             includeOHP,
         });
 
-        // Store a relative private path, not an arbitrary URL from the client.
         const relativeDocumentPath = path
             .relative(process.cwd(), uploadedPath)
             .split(path.sep)
@@ -202,23 +376,61 @@ const createXeroxRequest = async (req, res, next) => {
             pricing,
         });
     } catch (error) {
-        // If the request was rejected, don't leave an orphaned PDF behind.
         await removeUploadedFile(uploadedPath);
         next(error);
     }
 };
 
 // GET /api/xerox/my-requests
+
 const getMyXeroxRequests = async (req, res, next) => {
     try {
-        const requests = await Xerox.find({ student: req.user.id })
-            .sort({ createdAt: -1 })
-            .limit(100);
+        const { page, limit, skip } = getPagination(req.query);
+
+        const filter = {
+            student: req.user.id,
+        };
+
+        validateFilter(
+            req.query.status,
+            XEROX_STATUSES,
+            'status'
+        );
+
+        validateFilter(
+            req.query.paymentStatus,
+            PAYMENT_STATUSES,
+            'paymentStatus'
+        );
+
+        if (req.query.status !== undefined) {
+            filter.status = req.query.status;
+        }
+
+        if (req.query.paymentStatus !== undefined) {
+            filter.paymentStatus = req.query.paymentStatus;
+        }
+
+        const dateFilter = getDateFilter(req.query);
+
+        if (Object.keys(dateFilter).length > 0) {
+            filter.createdAt = dateFilter;
+        }
+
+        const [requests, total] = await Promise.all([
+            Xerox.find(filter)
+                .sort({ createdAt: -1 })
+                .skip(skip)
+                .limit(limit),
+
+            Xerox.countDocuments(filter),
+        ]);
 
         res.json({
             success: true,
             count: requests.length,
             requests: requests.map(getSafeRequest),
+            pagination: getPaginationMetadata(page, limit, total),
         });
     } catch (error) {
         next(error);
@@ -226,21 +438,148 @@ const getMyXeroxRequests = async (req, res, next) => {
 };
 
 // GET /api/xerox/shop/requests
+
 const getShopkeeperRequests = async (req, res, next) => {
     try {
-        const requests = await Xerox.find({
-            $or: [
-                { shopkeeper: null, status: 'pending' },
-                { shopkeeper: req.user.id },
-            ],
-        })
-            .sort({ createdAt: 1 })
-            .limit(100);
+        const { page, limit, skip } = getPagination(req.query);
+
+        const conditions = [
+            {
+                $or: [
+                    {
+                        shopkeeper: null,
+                        status: 'pending',
+                    },
+                    {
+                        shopkeeper: req.user.id,
+                    },
+                ],
+            },
+        ];
+
+        validateFilter(
+            req.query.status,
+            XEROX_STATUSES,
+            'status'
+        );
+
+        validateFilter(
+            req.query.paymentStatus,
+            PAYMENT_STATUSES,
+            'paymentStatus'
+        );
+
+        if (req.query.status !== undefined) {
+            conditions.push({
+                status: req.query.status,
+            });
+        }
+
+        if (req.query.paymentStatus !== undefined) {
+            conditions.push({
+                paymentStatus: req.query.paymentStatus,
+            });
+        }
+
+        const dateFilter = getDateFilter(req.query);
+
+        if (Object.keys(dateFilter).length > 0) {
+            conditions.push({
+                createdAt: dateFilter,
+            });
+        }
+
+        if (req.query.search !== undefined) {
+            if (
+                typeof req.query.search !== 'string' ||
+                !req.query.search.trim()
+            ) {
+                throw apiError(400, 'search must be a non-empty string.');
+            }
+
+            const search = req.query.search.trim();
+
+            if (search.length > 100) {
+                throw apiError(
+                    400,
+                    'search must not exceed 100 characters.'
+                );
+            }
+
+            const escapedSearch = escapeRegex(search);
+            const searchConditions = [];
+
+            if (mongoose.isValidObjectId(search)) {
+                searchConditions.push({
+                    _id: search,
+                });
+            }
+
+            const matchingStudents = await User.find({
+                role: 'student',
+                $or: [
+                    {
+                        name: {
+                            $regex: escapedSearch,
+                            $options: 'i',
+                        },
+                    },
+                    {
+                        email: {
+                            $regex: escapedSearch,
+                            $options: 'i',
+                        },
+                    },
+                    {
+                        collegeId: {
+                            $regex: escapedSearch,
+                            $options: 'i',
+                        },
+                    },
+                ],
+            }).select('_id').lean();
+
+            const studentIds = matchingStudents.map(
+                (student) => student._id
+            );
+
+            if (studentIds.length > 0) {
+                searchConditions.push({
+                    student: {
+                        $in: studentIds,
+                    },
+                });
+            }
+
+            if (searchConditions.length === 0) {
+                conditions.push({
+                    _id: null,
+                });
+            } else {
+                conditions.push({
+                    $or: searchConditions,
+                });
+            }
+        }
+
+        const filter = {
+            $and: conditions,
+        };
+
+        const [requests, total] = await Promise.all([
+            Xerox.find(filter)
+                .sort({ createdAt: 1 })
+                .skip(skip)
+                .limit(limit),
+
+            Xerox.countDocuments(filter),
+        ]);
 
         res.json({
             success: true,
             count: requests.length,
             requests: requests.map(getSafeRequest),
+            pagination: getPaginationMetadata(page, limit, total),
         });
     } catch (error) {
         next(error);
@@ -274,7 +613,6 @@ const updateXeroxStatus = async (req, res, next) => {
             throw apiError(400, 'Invalid requested status transition.');
         }
 
-        // Find the current request to validate the intended transition.
         const currentRequest = await Xerox.findById(id);
 
         if (!currentRequest) {
@@ -285,7 +623,10 @@ const updateXeroxStatus = async (req, res, next) => {
             currentRequest.shopkeeper &&
             currentRequest.shopkeeper.toString() !== req.user.id
         ) {
-            throw apiError(403, 'This request belongs to another shopkeeper.');
+            throw apiError(
+                403,
+                'This request belongs to another shopkeeper.'
+            );
         }
 
         const permittedNextStatuses =
@@ -298,18 +639,14 @@ const updateXeroxStatus = async (req, res, next) => {
             );
         }
 
-        // Use a conditional atomic update so concurrent requests cannot
-        // overwrite a status that has already changed.
         const filter = {
             _id: id,
             status: currentRequest.status,
         };
 
         if (currentRequest.status === 'pending') {
-            // Only one shopkeeper can claim an unassigned pending request.
             filter.shopkeeper = null;
         } else {
-            // Only the shopkeeper assigned to this request may update it.
             filter.shopkeeper = req.user.id;
         }
 
@@ -346,8 +683,8 @@ const updateXeroxStatus = async (req, res, next) => {
     }
 };
 
-
 // GET /api/xerox/:id/document
+
 const downloadXeroxDocument = async (req, res, next) => {
     try {
         const { id } = req.params;
@@ -362,18 +699,23 @@ const downloadXeroxDocument = async (req, res, next) => {
             throw apiError(404, 'Xerox request not found.');
         }
 
-        const isStudentOwner = request.student.toString() === req.user.id;
+        const isStudentOwner =
+            request.student.toString() === req.user.id;
+
         const isAssignedShopkeeper =
             req.user.role === 'shopkeeper' &&
             request.shopkeeper &&
             request.shopkeeper.toString() === req.user.id;
+
         const isAdmin = req.user.role === 'admin';
 
         if (!isStudentOwner && !isAssignedShopkeeper && !isAdmin) {
-            throw apiError(403, 'You are not allowed to access this document.');
+            throw apiError(
+                403,
+                'You are not allowed to access this document.'
+            );
         }
 
-        // Resolve only paths inside the private Xerox upload directory.
         const filename = path.basename(request.documentUrl);
         const filePath = path.resolve(uploadDirectory, filename);
         const resolvedDirectory = path.resolve(uploadDirectory);
@@ -385,6 +727,7 @@ const downloadXeroxDocument = async (req, res, next) => {
         await fs.access(filePath);
 
         res.setHeader('Content-Type', 'application/pdf');
+
         res.setHeader(
             'Content-Disposition',
             `attachment; filename="xerox-${request._id}.pdf"`
@@ -397,15 +740,17 @@ const downloadXeroxDocument = async (req, res, next) => {
         });
     } catch (error) {
         if (error.code === 'ENOENT') {
-            return next(apiError(404, 'The uploaded document is no longer available.'));
+            return next(
+                apiError(404, 'The uploaded document is no longer available.')
+            );
         }
 
         next(error);
     }
 };
 
-
 // PATCH /api/xerox/:id/payment
+
 const markXeroxPaymentPaid = async (req, res, next) => {
     try {
         const { id } = req.params;
@@ -452,7 +797,9 @@ const markXeroxPaymentPaid = async (req, res, next) => {
                 paymentStatus: 'pending',
             },
             {
-                $set: { paymentStatus: 'paid' },
+                $set: {
+                    paymentStatus: 'paid',
+                },
             },
             {
                 new: true,
