@@ -1,4 +1,4 @@
-function Dashboard({ onOpenMenu, onOpenCart, onLogout }) {
+function Dashboard({ onOpenMenu, onOpenCart, onOpenOrders, onOpenXerox, onLogout }) {
     return (
         <main className="min-h-screen bg-[#f7f0e6] text-[#3f2720]">
 
@@ -10,13 +10,20 @@ function Dashboard({ onOpenMenu, onOpenCart, onLogout }) {
                         <h1 className="text-2xl font-bold text-[#7b1e1e]">
                             CampusHub
                         </h1>
-
                         <p className="text-sm text-gray-500">
                             Your campus, connected
                         </p>
                     </div>
 
                     <div className="flex items-center gap-3">
+                        <button
+                            type="button"
+                            onClick={onOpenOrders}
+                            className="rounded-xl border border-[#7b1e1e] px-5 py-2.5 text-sm font-semibold text-[#7b1e1e] transition hover:bg-[#7b1e1e] hover:text-white"
+                        >
+                            My Orders
+                        </button>
+
                         <button
                             type="button"
                             onClick={onOpenCart}
@@ -164,12 +171,13 @@ function Dashboard({ onOpenMenu, onOpenCart, onLogout }) {
                                 </p>
                             </div>
 
-                            <button
-                                type="button"
-                                className="rounded-xl bg-[#7b1e1e] px-6 py-3 font-semibold text-white transition hover:bg-[#641818]"
-                            >
-                                Explore Service
-                            </button>
+                           <button
+    type="button"
+    onClick={onOpenXerox}
+    className="rounded-xl bg-[#7b1e1e] px-6 py-3 font-semibold text-white transition hover:bg-[#641818]"
+>
+    Explore Service
+</button>
 
                         </div>
                     </div>

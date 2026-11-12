@@ -1,5 +1,5 @@
-
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { placeOrder } from './api/orderApi'
 
 const getHeaders = () => {
     const token = localStorage.getItem('campushub_token')
@@ -39,6 +39,8 @@ function Cart({ onBack }) {
     const [actionError, setActionError] = useState('')
     const [busyItemId, setBusyItemId] = useState(null)
     const [clearing, setClearing] = useState(false)
+    const [placingOrder, setPlacingOrder] = useState(false)
+    const [orderSuccess, setOrderSuccess] = useState('')
 
     const loadCart = useCallback(async () => {
         const result = await apiRequest('/api/cart')
@@ -86,6 +88,7 @@ function Cart({ onBack }) {
     const performAction = async (itemId, action) => {
         setBusyItemId(itemId)
         setActionError('')
+        setOrderSuccess('')
 
         try {
             await action()
@@ -137,6 +140,7 @@ function Cart({ onBack }) {
     const clearCart = async () => {
         setClearing(true)
         setActionError('')
+        setOrderSuccess('')
 
         try {
             await apiRequest('/api/cart', { method: 'DELETE' })
@@ -145,6 +149,34 @@ function Cart({ onBack }) {
             setActionError(err.message || 'Unable to clear your cart.')
         } finally {
             setClearing(false)
+        }
+    }
+
+    // Place order using the logged-in student's backend cart
+    const handlePlaceOrder = async () => {
+        setPlacingOrder(true)
+        setActionError('')
+        setOrderSuccess('')
+
+        try {
+            const result = await placeOrder()
+            const orderId = result.data?._id
+
+            setCartItems([])
+
+            setOrderSuccess(
+                orderId
+                    ? `Order placed successfully! Your Order ID is ${orderId}`
+                    : 'Your order was placed successfully!'
+            )
+        } catch (err) {
+            setActionError(
+                err.response?.data?.message ||
+                err.message ||
+                'Unable to place your order. Please try again.'
+            )
+        } finally {
+            setPlacingOrder(false)
         }
     }
 
@@ -194,6 +226,15 @@ function Cart({ onBack }) {
                     </p>
                 </section>
 
+                {orderSuccess && (
+                    <div
+                        role="status"
+                        className="mb-6 rounded-xl border border-green-200 bg-green-50 px-5 py-4 text-sm font-medium text-green-700"
+                    >
+                        {orderSuccess}
+                    </div>
+                )}
+
                 {loading && (
                     <div className="mb-6 rounded-2xl border border-[#eadfd2] bg-white px-6 py-5 shadow-sm">
                         <div className="flex items-center gap-3">
@@ -231,6 +272,15 @@ function Cart({ onBack }) {
                     </div>
                 )}
 
+                {actionError && (
+                    <div
+                        role="alert"
+                        className="mb-6 rounded-xl border border-red-200 bg-red-50 px-5 py-3 text-sm text-red-700"
+                    >
+                        {actionError}
+                    </div>
+                )}
+
                 {!loading && !error && cartItems.length === 0 && (
                     <div className="rounded-2xl border border-[#eadfd2] bg-white px-6 py-16 text-center shadow-sm">
                         <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-full bg-[#f1e3d5] text-3xl">
@@ -250,15 +300,6 @@ function Cart({ onBack }) {
                     </div>
                 )}
 
-                {actionError && (
-                    <div
-                        role="alert"
-                        className="mb-6 rounded-xl border border-red-200 bg-red-50 px-5 py-3 text-sm text-red-700"
-                    >
-                        {actionError}
-                    </div>
-                )}
-
                 {!loading && !error && cartItems.length > 0 && (
                     <div className="grid gap-8 lg:grid-cols-[1fr_380px]">
                         <section>
@@ -272,7 +313,7 @@ function Cart({ onBack }) {
 
                                 <button
                                     type="button"
-                                    disabled={clearing || busyItemId !== null}
+                                    disabled={clearing || busyItemId !== null || placingOrder}
                                     onClick={clearCart}
                                     className="text-sm font-semibold text-[#7b1e1e] hover:underline disabled:opacity-50"
                                 >
@@ -301,7 +342,7 @@ function Cart({ onBack }) {
                                                 <div className="flex items-center rounded-xl border border-[#dfd0c1]">
                                                     <button
                                                         type="button"
-                                                        disabled={busyItemId === item.id || clearing}
+                                                        disabled={busyItemId === item.id || clearing || placingOrder}
                                                         onClick={() => decreaseQuantity(item)}
                                                         aria-label={`Decrease ${item.name} quantity`}
                                                         className="px-4 py-2 text-lg font-semibold text-[#7b1e1e] hover:bg-[#f7f0e6] disabled:opacity-50"
@@ -313,7 +354,7 @@ function Cart({ onBack }) {
                                                     </span>
                                                     <button
                                                         type="button"
-                                                        disabled={busyItemId === item.id || clearing}
+                                                        disabled={busyItemId === item.id || clearing || placingOrder}
                                                         onClick={() => increaseQuantity(item)}
                                                         aria-label={`Increase ${item.name} quantity`}
                                                         className="px-4 py-2 text-lg font-semibold text-[#7b1e1e] hover:bg-[#f7f0e6] disabled:opacity-50"
@@ -328,7 +369,7 @@ function Cart({ onBack }) {
                                                     </p>
                                                     <button
                                                         type="button"
-                                                        disabled={busyItemId === item.id || clearing}
+                                                        disabled={busyItemId === item.id || clearing || placingOrder}
                                                         onClick={() => removeItem(item)}
                                                         className="mt-1 text-xs font-semibold text-red-600 hover:underline disabled:opacity-50"
                                                     >
@@ -374,14 +415,15 @@ function Cart({ onBack }) {
 
                                 <button
                                     type="button"
-                                    disabled
-                                    className="mt-6 w-full cursor-not-allowed rounded-xl bg-[#7b1e1e] px-5 py-3.5 font-semibold text-white opacity-70"
+                                    disabled={placingOrder || clearing || busyItemId !== null}
+                                    onClick={handlePlaceOrder}
+                                    className="mt-6 w-full rounded-xl bg-[#7b1e1e] px-5 py-3.5 font-semibold text-white transition hover:bg-[#641818] disabled:cursor-not-allowed disabled:opacity-50"
                                 >
-                                    Place Order
+                                    {placingOrder ? 'Placing Order...' : 'Place Order'}
                                 </button>
 
                                 <p className="mt-4 text-center text-xs leading-5 text-gray-400">
-                                    Order placement will be connected to the backend API later.
+                                    Your order total will be calculated and verified by the server.
                                 </p>
                             </div>
                         </aside>
