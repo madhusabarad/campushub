@@ -404,11 +404,85 @@ const downloadXeroxDocument = async (req, res, next) => {
     }
 };
 
+
+// PATCH /api/xerox/:id/payment
+const markXeroxPaymentPaid = async (req, res, next) => {
+    try {
+        const { id } = req.params;
+
+        if (!mongoose.isValidObjectId(id)) {
+            throw apiError(400, 'Invalid Xerox request ID.');
+        }
+
+        const currentRequest = await Xerox.findById(id);
+
+        if (!currentRequest) {
+            throw apiError(404, 'Xerox request not found.');
+        }
+
+        if (
+            !currentRequest.shopkeeper ||
+            currentRequest.shopkeeper.toString() !== req.user.id
+        ) {
+            throw apiError(
+                403,
+                'Only the assigned shopkeeper can confirm this payment.'
+            );
+        }
+
+        if (currentRequest.status !== 'completed') {
+            throw apiError(
+                400,
+                'Payment can only be confirmed after the Xerox request is completed.'
+            );
+        }
+
+        if (currentRequest.paymentStatus !== 'pending') {
+            throw apiError(
+                409,
+                `Payment is already ${currentRequest.paymentStatus}.`
+            );
+        }
+
+        const updatedRequest = await Xerox.findOneAndUpdate(
+            {
+                _id: id,
+                shopkeeper: req.user.id,
+                status: 'completed',
+                paymentStatus: 'pending',
+            },
+            {
+                $set: { paymentStatus: 'paid' },
+            },
+            {
+                new: true,
+                runValidators: true,
+            }
+        );
+
+        if (!updatedRequest) {
+            throw apiError(
+                409,
+                'Payment status has already changed. Refresh and try again.'
+            );
+        }
+
+        return res.json({
+            success: true,
+            message: 'Xerox payment marked as paid.',
+            request: getSafeRequest(updatedRequest),
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
 module.exports = {
     getPricing,
     createXeroxRequest,
     getMyXeroxRequests,
     getShopkeeperRequests,
     updateXeroxStatus,
+    markXeroxPaymentPaid,
     downloadXeroxDocument,
 };

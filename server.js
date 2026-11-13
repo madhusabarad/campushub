@@ -39,8 +39,10 @@ app.use('/api/xerox', xeroxRoutes);
 app.get('/', (req, res) => res.json({ message: 'CampusHub API is running' }));
 
 // 404 handler
-app.use((req, res) => {
-  res.status(404).json({ message: 'Route not found' });
+app.use((req, res, next) => {
+  const error = new Error('Route not found');
+  error.status = 404;
+  next(error);
 });
 
 // Centralized error handler

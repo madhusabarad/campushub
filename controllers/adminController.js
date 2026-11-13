@@ -3,6 +3,7 @@ const User = require('../models/User');
 const Shop = require('../models/Shop');
 const Order = require('../models/Order');
 const { buildRevenuePerShop } = require('../utils/adminAnalytics');
+const { moveShopkeeperToShop } = require('../utils/shopkeeperAssignment');
 
 // @desc List all users
 // @route GET /api/admin/users
@@ -55,6 +56,7 @@ const getAllShops = async (req, res) => {
 // @desc Assign a shopkeeper to a shop
 // @route PATCH /api/admin/shops/:shopId/assign-shopkeeper
 // @access Admin
+
 const assignShopkeeper = async (req, res) => {
     try {
         const { shopId } = req.params;
@@ -96,24 +98,27 @@ const assignShopkeeper = async (req, res) => {
             });
         }
 
-        shop.shopkeeperId = shopkeeper._id;
-        await shop.save();
-
-        await shop.populate('shopkeeperId', 'name email collegeId role');
+        const updatedShop = await moveShopkeeperToShop({
+            Shop,
+            shop,
+            shopkeeper,
+        });
 
         return res.status(200).json({
             success: true,
             message: 'Shopkeeper assigned successfully.',
-            data: shop,
+            data: updatedShop,
         });
     } catch (error) {
         console.error('Assign shopkeeper error:', error);
+
         return res.status(500).json({
             success: false,
             message: 'Failed to assign shopkeeper.',
         });
     }
 };
+
 
 // @desc List all orders
 // @route GET /api/admin/orders

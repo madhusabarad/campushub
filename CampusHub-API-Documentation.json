@@ -1,0 +1,475 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "CampusHub API Documentation",
+    "version": "1.0.0",
+    "description": "API collection for CampusHub. Based on the routes registered on the dev branch. Set baseUrl and use Login to capture a JWT token before calling protected endpoints. Public registration only creates student accounts."
+  },
+  "servers": [
+    {
+      "url": "http://localhost:5001"
+    }
+  ],
+  "paths": {
+    "/api/health": {
+      "get": {
+        "summary": "API health check",
+        "responses": {},
+        "tags": [
+          "Health"
+        ]
+      }
+    },
+    "/": {
+      "get": {
+        "summary": "Root status",
+        "responses": {},
+        "tags": [
+          "Health"
+        ]
+      }
+    },
+    "/api/auth/register": {
+      "post": {
+        "summary": "Register student",
+        "responses": {},
+        "tags": [
+          "Authentication"
+        ]
+      }
+    },
+    "/api/auth/login": {
+      "post": {
+        "summary": "Login",
+        "responses": {},
+        "tags": [
+          "Authentication"
+        ]
+      }
+    },
+    "/api/dashboard": {
+      "get": {
+        "summary": "Dashboard",
+        "responses": {},
+        "tags": [
+          "Authentication"
+        ]
+      }
+    },
+    "/api/shops": {
+      "get": {
+        "summary": "List shops",
+        "responses": {},
+        "tags": [
+          "Shops and Menus"
+        ]
+      }
+    },
+    "/api/shops/manage/status": {
+      "patch": {
+        "summary": "Open or close assigned shop",
+        "responses": {},
+        "tags": [
+          "Shops and Menus"
+        ]
+      }
+    },
+    "/api/shops/manage/menu": {
+      "post": {
+        "summary": "Create menu item",
+        "responses": {},
+        "tags": [
+          "Shops and Menus"
+        ]
+      }
+    },
+    "/api/shops/manage/menu/{menuItemId}": {
+      "patch": {
+        "summary": "Update menu item",
+        "responses": {},
+        "tags": [
+          "Shops and Menus"
+        ]
+      },
+      "parameters": [
+        {
+          "name": "menuItemId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          },
+          "example": "REPLACE_WITH_MENU_ITEM_ID"
+        }
+      ],
+      "delete": {
+        "summary": "Delete menu item",
+        "responses": {},
+        "tags": [
+          "Shops and Menus"
+        ]
+      }
+    },
+    "/api/shops/manage/menu/{menuItemId}/availability": {
+      "patch": {
+        "summary": "Update menu item availability",
+        "responses": {},
+        "tags": [
+          "Shops and Menus"
+        ]
+      },
+      "parameters": [
+        {
+          "name": "menuItemId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          },
+          "example": "REPLACE_WITH_MENU_ITEM_ID"
+        }
+      ]
+    },
+    "/api/cart": {
+      "get": {
+        "summary": "Get cart",
+        "responses": {},
+        "tags": [
+          "Cart"
+        ]
+      },
+      "delete": {
+        "summary": "Clear cart",
+        "responses": {},
+        "tags": [
+          "Cart"
+        ]
+      }
+    },
+    "/api/cart/add": {
+      "post": {
+        "summary": "Add item to cart",
+        "responses": {},
+        "tags": [
+          "Cart"
+        ]
+      }
+    },
+    "/api/cart/item/{cartItemId}": {
+      "patch": {
+        "summary": "Update cart item quantity",
+        "responses": {},
+        "tags": [
+          "Cart"
+        ]
+      },
+      "parameters": [
+        {
+          "name": "cartItemId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          },
+          "example": "REPLACE_WITH_CART_ITEM_SUBDOCUMENT_ID"
+        }
+      ],
+      "delete": {
+        "summary": "Remove cart item",
+        "responses": {},
+        "tags": [
+          "Cart"
+        ]
+      }
+    },
+    "/api/orders": {
+      "post": {
+        "summary": "Place order from current cart",
+        "responses": {},
+        "tags": [
+          "Orders"
+        ]
+      },
+      "get": {
+        "summary": "Get my orders",
+        "responses": {},
+        "tags": [
+          "Orders"
+        ]
+      }
+    },
+    "/api/orders/{orderId}": {
+      "get": {
+        "summary": "Get order by ID",
+        "responses": {},
+        "tags": [
+          "Orders"
+        ]
+      },
+      "parameters": [
+        {
+          "name": "orderId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          },
+          "example": "REPLACE_WITH_ORDER_ID"
+        }
+      ]
+    },
+    "/api/orders/shop/incoming": {
+      "get": {
+        "summary": "Get incoming orders (shopkeeper)",
+        "responses": {},
+        "tags": [
+          "Orders"
+        ]
+      }
+    },
+    "/api/orders/{orderId}/status": {
+      "patch": {
+        "summary": "Update order status (shopkeeper)",
+        "responses": {},
+        "tags": [
+          "Orders"
+        ]
+      },
+      "parameters": [
+        {
+          "name": "orderId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          },
+          "example": "REPLACE_WITH_ORDER_ID"
+        }
+      ]
+    },
+    "/api/orders/{orderId}/cancel": {
+      "patch": {
+        "summary": "Cancel order (student)",
+        "responses": {},
+        "tags": [
+          "Orders"
+        ]
+      },
+      "parameters": [
+        {
+          "name": "orderId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          },
+          "example": "REPLACE_WITH_ORDER_ID"
+        }
+      ]
+    },
+    "/api/xerox/pricing": {
+      "get": {
+        "summary": "Get Xerox pricing",
+        "responses": {},
+        "tags": [
+          "Xerox"
+        ]
+      }
+    },
+    "/api/xerox": {
+      "post": {
+        "summary": "Create Xerox request (PDF upload)",
+        "responses": {},
+        "tags": [
+          "Xerox"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/xerox/my-requests": {
+      "get": {
+        "summary": "Get my Xerox requests",
+        "responses": {},
+        "tags": [
+          "Xerox"
+        ]
+      }
+    },
+    "/api/xerox/shop/requests": {
+      "get": {
+        "summary": "Get shopkeeper Xerox requests",
+        "responses": {},
+        "tags": [
+          "Xerox"
+        ]
+      }
+    },
+    "/api/xerox/{xeroxRequestId}/status": {
+      "patch": {
+        "summary": "Update Xerox request status",
+        "responses": {},
+        "tags": [
+          "Xerox"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "status": {
+                    "type": "string"
+                  }
+                }
+              },
+              "example": {
+                "status": "accepted"
+              }
+            }
+          }
+        }
+      },
+      "parameters": [
+        {
+          "name": "xeroxRequestId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          },
+          "example": "REPLACE_WITH_XEROX_REQUEST_ID"
+        }
+      ]
+    },
+    "/api/xerox/{xeroxRequestId}/document": {
+      "get": {
+        "summary": "Download Xerox document",
+        "responses": {},
+        "tags": [
+          "Xerox"
+        ]
+      },
+      "parameters": [
+        {
+          "name": "xeroxRequestId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          },
+          "example": "REPLACE_WITH_XEROX_REQUEST_ID"
+        }
+      ]
+    },
+    "/api/admin/stats": {
+      "get": {
+        "summary": "Get admin statistics",
+        "responses": {},
+        "tags": [
+          "Admin"
+        ]
+      }
+    },
+    "/api/admin/users": {
+      "get": {
+        "summary": "List all users",
+        "responses": {},
+        "tags": [
+          "Admin"
+        ]
+      }
+    },
+    "/api/admin/shops": {
+      "get": {
+        "summary": "List all shops",
+        "responses": {},
+        "tags": [
+          "Admin"
+        ]
+      }
+    },
+    "/api/admin/shops/{shopId}/assign-shopkeeper": {
+      "patch": {
+        "summary": "Assign shopkeeper to shop",
+        "responses": {},
+        "tags": [
+          "Admin"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "shopkeeperId": {
+                    "type": "string"
+                  }
+                }
+              },
+              "example": {
+                "shopkeeperId": "REPLACE_WITH_SHOPKEEPER_ID"
+              }
+            }
+          }
+        }
+      },
+      "parameters": [
+        {
+          "name": "shopId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          },
+          "example": "REPLACE_WITH_SHOP_ID"
+        }
+      ]
+    },
+    "/api/admin/orders": {
+      "get": {
+        "summary": "List all orders (admin)",
+        "responses": {},
+        "tags": [
+          "Admin"
+        ]
+      }
+    },
+    "/api/shops/{id}/menu": {
+      "get": {
+        "summary": "List a shop's menu",
+        "responses": {},
+        "tags": [
+          "Shops and Menus"
+        ]
+      },
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          },
+          "example": "REPLACE_WITH_SHOP_ID"
+        }
+      ]
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "BearerAuth": {
+        "type": "http",
+        "scheme": "bearer"
+      }
+    }
+  },
+  "security": [
+    {
+      "BearerAuth": []
+    }
+  ]
+}
