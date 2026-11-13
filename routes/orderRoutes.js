@@ -12,9 +12,11 @@ const {
   getIncomingOrders,
   updateOrderStatus,
   cancelOrder,
+  verifyPickup,
 } = require('../controllers/orderController');
 
 router.use(authMiddleware);
+router.post('/verify-pickup', shopkeeperMiddleware, verifyPickup);
 
 router.post('/', createOrder);
 router.get('/', getUserOrders);

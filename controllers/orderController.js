@@ -1,4 +1,4 @@
-
+const Notification = require('../models/Notification');
 const mongoose = require('mongoose');
 
 const Shop = require('../models/Shop');
@@ -474,25 +474,63 @@ exports.updateOrderStatus = async (req, res) => {
         message: `This order cannot move from "${order.status}" to "${status}".`,
       });
     }
-
-    // Update only if the status has not changed since it was read.
-    const updatedOrder = await Order.findOneAndUpdate(
-      {
-        _id: order._id,
-        shopId: shop._id,
-        status: order.status,
+// Update order status and history
+const updatedOrder = await Order.findOneAndUpdate(
+  {
+    _id: order._id,
+    shopId: shop._id,
+    status: order.status,
+  },
+  {
+    $set: { status },
+    $push: {
+      statusHistory: {
+        status,
+        changedAt: new Date(),
+        note: `Order status changed to ${status}`,
       },
-      { $set: { status } },
-      { new: true, runValidators: true }
+    },
+  },
+  { new: true, runValidators: true }
+);
+
+if (!updatedOrder) {
+  return res.status(409).json({
+    success: false,
+    message: 'The order status changed. Refresh and try again.',
+  });
+}
+
+// Send live status update
+const io = req.app.get('io');
+
+if (io) {
+  const eventData = {
+    orderId: updatedOrder._id,
+    orderToken: updatedOrder.orderToken,
+    status: updatedOrder.status,
+  };
+
+  io.to(`user:${updatedOrder.userId}`).emit('orderStatusChanged', eventData);
+  io.to(`shop:${shop._id}`).emit('orderStatusChanged', eventData);
+}
+// Create notification when order is ready
+if (status === 'ready') {
+  const notification = await Notification.create({
+    userId: updatedOrder.userId,
+    orderId: updatedOrder._id,
+    message: `Your order ${updatedOrder.orderToken} is ready for pickup!`,
+    type: 'order_ready',
+  });
+
+  if (io) {
+    io.to(`user:${updatedOrder.userId}`).emit(
+      'notification',
+      notification
     );
-
-    if (!updatedOrder) {
-      return res.status(409).json({
-        success: false,
-        message: 'The order status changed. Refresh the order and try again.',
-      });
-    }
-
+  }
+}
+    
     return res.status(200).json({
       success: true,
       message: `Order status updated to "${status}".`,
@@ -551,7 +589,7 @@ exports.cancelOrder = async (req, res) => {
 
       return res.status(400).json({
         success: false,
-        message: 'Only orders with status "placed" can be cancelled.',
+        messagie: 'Only orders with status "placed" can be cancelled.',
       });
     }
 
@@ -694,6 +732,77 @@ exports.getIncomingOrders = async (req, res) => {
     return res.status(500).json({
       success: false,
       message: 'Server error while retrieving incoming orders.',
+    });
+  }
+};
+// Verify order pickup using QR pickup token
+exports.verifyPickup = async (req, res) => {
+  try {
+    const { pickupToken } = req.body;
+
+    if (!pickupToken) {
+      return res.status(400).json({
+        success: false,
+        message: 'Pickup token is required.',
+      });
+    }
+
+    const shop = await Shop.findOne({ shopkeeperId: req.user.id });
+
+    if (!shop) {
+      return res.status(404).json({
+        success: false,
+        message: 'Shop not found.',
+      });
+    }
+
+    const order = await Order.findOne({
+      pickupToken,
+      shopId: shop._id,
+    });
+
+    if (!order) {
+      return res.status(404).json({
+        success: false,
+        message: 'Invalid pickup token.',
+      });
+    }
+
+    if (order.status !== 'ready') {
+      return res.status(400).json({
+        success: false,
+        message: 'Order is not ready for pickup.',
+      });
+    }
+
+    order.status = 'completed';
+    order.statusHistory.push({
+      status: 'completed',
+      changedAt: new Date(),
+      note: 'Pickup verified by shopkeeper.',
+    });
+
+    await order.save();
+
+    const io = req.app.get('io');
+    if (io) {
+      io.to(`user:${order.userId}`).emit('orderStatusChanged', {
+        orderId: order._id,
+        orderToken: order.orderToken,
+        status: 'completed',
+      });
+    }
+
+    return res.json({
+      success: true,
+      message: 'Pickup verified successfully.',
+      data: order,
+    });
+  } catch (err) {
+    console.error('verifyPickup error:', err);
+    return res.status(500).json({
+      success: false,
+      message: 'Pickup verification failed.',
     });
   }
 };

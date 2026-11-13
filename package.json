@@ -28,7 +28,9 @@
     "jsonwebtoken": "^9.0.3",
     "mongoose": "^8.24.4",
     "multer": "^2.4.0",
-    "pdf-lib": "^1.17.1"
+    "pdf-lib": "^1.17.1",
+    "razorpay": "^2.9.8",
+    "socket.io": "^4.8.4"
   },
   "devDependencies": {
     "nodemon": "^3.1.14"
