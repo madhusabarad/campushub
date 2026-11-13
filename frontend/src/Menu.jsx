@@ -7,45 +7,18 @@ const SHOP_CONFIG = {
         name: 'Campus Canteen',
         description:
             'Browse the available food and beverages from the campus canteen.',
-        categories: ['Food', 'Juice', 'Milk Shakes', 'Beverages'],
     },
     '2': {
         category: 'foodcourt',
         name: 'Akshay Food Court',
         description:
             'Explore the food, snacks, beverages and other items available at Akshay Food Court.',
-        categories: [
-            'Papad',
-            'Fries',
-            'Soup',
-            'Gobi Starters',
-            'Mushroom Starters',
-            'Babycorn Starters',
-            'Paneer Starters',
-            'Fried Nuggets',
-            'Momos',
-            'Veg Dishes',
-            'Mushroom Dishes',
-            'Babycorn Dishes',
-            'Paneer Dishes',
-            'Kaju Dishes',
-            'Dal Dishes',
-            'Roti',
-            'Rice Items',
-            'Biriyani Items',
-            'Noodles',
-            'Beverages',
-            'Juice',
-            'Milkshakes',
-            'Smoothies',
-        ],
     },
     '3': {
         category: 'bakery',
         name: 'Campus Bakery',
         description:
             'Browse snacks, bakery items, burgers and refreshments from the campus bakery.',
-        categories: ['Bakery'],
     },
 }
 
@@ -136,17 +109,43 @@ function Menu({ shopId, onBack }) {
                     )
                 }
 
-                const menuResult = await apiRequest(
-                    `/api/shops/${matchedShop._id}/menu`,
+                const firstPage = await apiRequest(
+                    `/api/shops/${matchedShop._id}/menu?page=1&limit=100`,
+                )
+
+                const totalPages = Number(
+                    firstPage.pagination?.totalPages || 1,
+                )
+
+                const remainingPages = Array.from(
+                    { length: Math.max(0, totalPages - 1) },
+                    (_, index) => index + 2,
+                )
+
+                const remainingResults = await Promise.all(
+                    remainingPages.map((page) =>
+                        apiRequest(
+                            `/api/shops/${matchedShop._id}/menu?page=${page}&limit=100`,
+                        ),
+                    ),
                 )
 
                 if (cancelled) return
 
+                const allItems = [
+                    ...(firstPage.data || []),
+                    ...remainingResults.flatMap(
+                        (pageResult) => pageResult.data || [],
+                    ),
+                ]
+
                 setShop(matchedShop)
+
                 setMenuItems(
-                    (menuResult.data || []).map((item) => ({
+                    allItems.map((item) => ({
                         ...item,
                         id: item._id,
+                        category: item.category?.trim() || 'Other',
                     })),
                 )
             } catch (err) {
@@ -256,6 +255,14 @@ function Menu({ shopId, onBack }) {
         )
     }
 
+    const menuCategories = useMemo(
+        () =>
+            [...new Set(menuItems.map((item) => item.category))].sort(
+                (a, b) => a.localeCompare(b),
+            ),
+        [menuItems],
+    )
+
     const cartItemCount = useMemo(
         () => cart.reduce((total, item) => total + item.quantity, 0),
         [cart],
@@ -274,8 +281,12 @@ function Menu({ shopId, onBack }) {
         <main className="min-h-screen bg-[#f5efe7] text-[#342c29]">
             <header className="border-b border-[#d8c9ba] bg-[#fbf8f3]">
                 <div className="mx-auto max-w-7xl px-6 py-5">
-                    <p className="text-lg font-semibold text-[#641f2b]">CampusHub</p>
-                    <p className="text-xs text-[#766d63]">{currentShop.name}</p>
+                    <p className="text-lg font-semibold text-[#641f2b]">
+                        CampusHub
+                    </p>
+                    <p className="text-xs text-[#766d63]">
+                        {currentShop.name}
+                    </p>
                 </div>
             </header>
 
@@ -303,12 +314,15 @@ function Menu({ shopId, onBack }) {
                 </section>
 
                 {loading && (
-                    <p className="py-8 text-sm text-[#766d63]">Loading menu...</p>
+                    <p className="py-8 text-sm text-[#766d63]">
+                        Loading menu...
+                    </p>
                 )}
 
                 {!loading && error && (
                     <div className="border border-red-200 bg-red-50 p-5 text-sm text-red-700">
                         <p>{error}</p>
+
                         <button
                             type="button"
                             onClick={() => window.location.reload()}
@@ -325,14 +339,12 @@ function Menu({ shopId, onBack }) {
                     </p>
                 )}
 
-                {!loading && !error && (
+                {!loading && !error && menuItems.length > 0 && (
                     <div className="space-y-10">
-                        {currentShop.categories.map((category) => {
+                        {menuCategories.map((category) => {
                             const categoryItems = menuItems.filter(
                                 (item) => item.category === category,
                             )
-
-                            if (categoryItems.length === 0) return null
 
                             return (
                                 <section key={category}>
@@ -343,7 +355,8 @@ function Menu({ shopId, onBack }) {
                                     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                                         {categoryItems.map((item) => {
                                             const unavailable =
-                                                !item.isAvailable || item.price == null
+                                                !item.isAvailable ||
+                                                item.price == null
 
                                             return (
                                                 <article
@@ -374,8 +387,13 @@ function Menu({ shopId, onBack }) {
 
                                                     <button
                                                         type="button"
-                                                        disabled={unavailable || busyItemId === item._id}
-                                                        onClick={() => addToCart(item)}
+                                                        disabled={
+                                                            unavailable ||
+                                                            busyItemId === item._id
+                                                        }
+                                                        onClick={() =>
+                                                            addToCart(item)
+                                                        }
                                                         className="mt-4 text-sm font-medium text-[#641f2b] disabled:cursor-not-allowed disabled:text-[#a8a099]"
                                                     >
                                                         {busyItemId === item._id
@@ -413,7 +431,9 @@ function Menu({ shopId, onBack }) {
                 )}
 
                 {cartLoading && (
-                    <p className="mt-8 text-sm text-[#766d63]">Loading your cart...</p>
+                    <p className="mt-8 text-sm text-[#766d63]">
+                        Loading your cart...
+                    </p>
                 )}
 
                 {!cartLoading && cart.length > 0 && (
@@ -423,6 +443,7 @@ function Menu({ shopId, onBack }) {
                                 <p className="text-sm font-medium uppercase tracking-[0.18em] text-[#8a4a55]">
                                     Cart
                                 </p>
+
                                 <h2 className="mt-1 text-2xl font-semibold text-[#342c29]">
                                     Your Cart
                                 </h2>
@@ -443,6 +464,7 @@ function Menu({ shopId, onBack }) {
                                         <h3 className="font-semibold text-[#342c29]">
                                             {item.name}
                                         </h3>
+
                                         <p className="text-sm text-[#766d63]">
                                             ₹{item.price} each
                                         </p>
@@ -453,7 +475,9 @@ function Menu({ shopId, onBack }) {
                                             <button
                                                 type="button"
                                                 disabled={busyItemId === item.id}
-                                                onClick={() => decreaseQuantity(item)}
+                                                onClick={() =>
+                                                    decreaseQuantity(item)
+                                                }
                                                 aria-label={`Decrease ${item.name} quantity`}
                                                 className="px-3 py-2 text-lg text-[#641f2b] hover:bg-[#f5efe7] disabled:opacity-50"
                                             >
@@ -467,7 +491,9 @@ function Menu({ shopId, onBack }) {
                                             <button
                                                 type="button"
                                                 disabled={busyItemId === item.id}
-                                                onClick={() => increaseQuantity(item)}
+                                                onClick={() =>
+                                                    increaseQuantity(item)
+                                                }
                                                 aria-label={`Increase ${item.name} quantity`}
                                                 className="px-3 py-2 text-lg text-[#641f2b] hover:bg-[#f5efe7] disabled:opacity-50"
                                             >
@@ -482,7 +508,9 @@ function Menu({ shopId, onBack }) {
                                         <button
                                             type="button"
                                             disabled={busyItemId === item.id}
-                                            onClick={() => removeFromCart(item)}
+                                            onClick={() =>
+                                                removeFromCart(item)
+                                            }
                                             className="text-sm font-medium text-red-600 hover:text-red-800 disabled:opacity-50"
                                         >
                                             Remove
@@ -493,7 +521,10 @@ function Menu({ shopId, onBack }) {
                         </div>
 
                         <div className="mt-6 flex items-center justify-between border-t border-[#d8c9ba] pt-5">
-                            <p className="font-semibold text-[#342c29]">Total</p>
+                            <p className="font-semibold text-[#342c29]">
+                                Total
+                            </p>
+
                             <p className="text-xl font-semibold text-[#641f2b]">
                                 ₹{cartTotal}
                             </p>
