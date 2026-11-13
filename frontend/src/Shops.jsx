@@ -1,3 +1,4 @@
+import { useNavigate } from 'react-router-dom';
 const shops = [
     {
         id: '1',
@@ -8,21 +9,22 @@ const shops = [
     },
     {
         id: '2',
-        name: 'Food Court',
+        name: 'Akshay Food Court',
         category: 'foodcourt',
         description: 'Explore food court outlets and their menus.',
-        isOpen: true,
+        isOpen: false,
     },
     {
         id: '3',
         name: 'Campus Bakery',
         category: 'bakery',
         description: 'Bakery items and refreshments.',
-        isOpen: false,
+        isOpen: true,
     },
 ]
 
-function Shops({ onViewMenu }) {
+function Shops() {
+    const navigate = useNavigate();
     return (
         <main className="min-h-screen bg-[#f5efe7] text-[#342c29]">
             <header className="border-b border-[#d8c9ba] bg-[#fbf8f3]">
@@ -80,12 +82,12 @@ function Shops({ onViewMenu }) {
                                 </p>
 
                                 <button
-                                    type="button"
-                                    onClick={() => onViewMenu(shop.id)}
-                                    className="mt-5 text-sm font-medium text-[#641f2b] transition hover:text-[#4f1721]"
-                                >
-                                    View Menu
-                                </button>
+    type="button"
+    onClick={() => navigate(`/shops/${shop.id}/menu`)}
+    className="mt-5 text-sm font-medium text-[#641f2b] transition hover:text-[#4f1721]"
+>
+    View Menu
+</button>
                             </article>
                         ))}
                     </div>
