@@ -1,514 +1,364 @@
+import { useEffect, useMemo, useState } from 'react';
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+const API_BASE = '/api';
 
 const SHOP_CONFIG = {
-    '1': {
-        category: 'canteen',
-        name: 'Campus Canteen',
-        description:
-            'Browse the available food and beverages from the campus canteen.',
-        categories: ['Food', 'Juice', 'Milk Shakes', 'Beverages'],
-    },
-    '2': {
-        category: 'foodcourt',
-        name: 'Akshay Food Court',
-        description:
-            'Explore the food, snacks, beverages and other items available at Akshay Food Court.',
-        categories: [
-            'Papad',
-            'Fries',
-            'Soup',
-            'Gobi Starters',
-            'Mushroom Starters',
-            'Babycorn Starters',
-            'Paneer Starters',
-            'Fried Nuggets',
-            'Momos',
-            'Veg Dishes',
-            'Mushroom Dishes',
-            'Babycorn Dishes',
-            'Paneer Dishes',
-            'Kaju Dishes',
-            'Dal Dishes',
-            'Roti',
-            'Rice Items',
-            'Biriyani Items',
-            'Noodles',
-            'Beverages',
-            'Juice',
-            'Milkshakes',
-            'Smoothies',
-        ],
-    },
-    '3': {
-        category: 'bakery',
-        name: 'Campus Bakery',
-        description:
-            'Browse snacks, bakery items, burgers and refreshments from the campus bakery.',
-        categories: ['Bakery'],
-    },
+  '1': {
+    name: 'Campus Canteen',
+    expectedCount: 30,
+  },
+  '2': {
+    name: 'Akshay Food Court',
+    expectedCount: 147,
+  },
+  '3': {
+    name: 'Campus Bakery',
+    expectedCount: 12,
+  },
+};
+
+function getToken() {
+  return (
+    localStorage.getItem('campushub_token') ||
+    localStorage.getItem('token') ||
+    localStorage.getItem('authToken') ||
+    ''
+  );
 }
 
-const getToken = () => localStorage.getItem('campushub_token')
+async function apiRequest(url) {
+  const token = getToken();
 
-const getHeaders = () => {
-    const token = getToken()
+  const response = await fetch(`${API_BASE}${url}`, {
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+  });
 
-    return {
-        'Content-Type': 'application/json',
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    }
+  const result = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    throw new Error(result.message || 'Unable to load menu.');
+  }
+
+  return result;
 }
 
-async function apiRequest(url, options = {}) {
-    const response = await fetch(url, {
-        ...options,
-        headers: {
-            ...getHeaders(),
-            ...options.headers,
-        },
-    })
+async function fetchAllMenuItems(shopId) {
+  const firstPage = await apiRequest(
+    `/shops/${shopId}/menu?page=1&limit=100`
+  );
 
-    const result = await response.json().catch(() => ({}))
+  const items = [...(firstPage.data || [])];
+  const totalPages = firstPage.pagination?.totalPages || 1;
 
-    if (!response.ok || result.success === false) {
-        if (response.status === 401 || response.status === 403) {
-            throw new Error('Your session may have expired. Please log in again.')
-        }
+  for (let page = 2; page <= totalPages; page++) {
+    const result = await apiRequest(
+      `/shops/${shopId}/menu?page=${page}&limit=100`
+    );
 
-        throw new Error(result.message || 'Something went wrong. Please try again.')
-    }
+    items.push(...(result.data || []));
+  }
 
-    return result
+  return items;
 }
 
-function Menu({ shopId, onBack }) {
-    const currentShop = SHOP_CONFIG[shopId] || SHOP_CONFIG['1']
+export default function Menu({ shopId, onBack }) {
+  const shopKey = String(shopId || '1');
+  const currentShop = SHOP_CONFIG[shopKey];
 
-    const [shop, setShop] = useState(null)
-    const [menuItems, setMenuItems] = useState([])
-    const [cart, setCart] = useState([])
-    const [loading, setLoading] = useState(true)
-    const [cartLoading, setCartLoading] = useState(true)
-    const [error, setError] = useState('')
-    const [cartError, setCartError] = useState('')
-    const [actionError, setActionError] = useState('')
-    const [busyItemId, setBusyItemId] = useState(null)
+  const [selectedShop, setSelectedShop] = useState(null);
+  const [menuItems, setMenuItems] = useState([]);
+  const [activeCategory, setActiveCategory] = useState('All');
+  const [cart, setCart] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
-    const loadCart = useCallback(async () => {
-        const result = await apiRequest('/api/cart')
-        const cartData = result.data || {}
+  useEffect(() => {
+    let cancelled = false;
 
-        setCart(
-            (cartData.items || [])
-                .filter((item) => item.menuItemId)
-                .map((item) => ({
-                    id: item._id,
-                    menuItemId: item.menuItemId._id,
-                    name: item.menuItemId.name,
-                    category: item.menuItemId.category || '',
-                    price: item.price ?? item.menuItemId.price,
-                    quantity: item.quantity,
-                })),
+    async function loadMenu() {
+      try {
+        setLoading(true);
+        setError('');
+        setMenuItems([]);
+        setSelectedShop(null);
+        setActiveCategory('All');
+
+        if (!currentShop) {
+          throw new Error('Invalid shop selection.');
+        }
+
+        const shopResult = await apiRequest('/shops?limit=100');
+        const allShops = shopResult.data || [];
+
+        const matchedShop = allShops.find(
+          shop =>
+            shop.name?.trim().toLowerCase() ===
+            currentShop.name.trim().toLowerCase()
+        );
+
+        if (!matchedShop) {
+          throw new Error(
+            `${currentShop.name} was not found in the database.`
+          );
+        }
+
+        if (cancelled) return;
+
+        setSelectedShop(matchedShop);
+
+        const items = await fetchAllMenuItems(matchedShop._id);
+
+        if (cancelled) return;
+
+        const correctShopItems = items.filter(item => {
+          const itemShopId = item.shopId?._id || item.shopId;
+          return String(itemShopId) === String(matchedShop._id);
+        });
+
+        setMenuItems(correctShopItems);
+      } catch (err) {
+        if (!cancelled) {
+          setError(err.message || 'Unable to load menu.');
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    }
+
+    loadMenu();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [shopKey]);
+
+  const categories = useMemo(
+    () => [
+      'All',
+      ...new Set(
+        menuItems
+          .map(item => item.category?.trim())
+          .filter(Boolean)
+      ),
+    ],
+    [menuItems]
+  );
+
+  const filteredItems = useMemo(
+    () =>
+      activeCategory === 'All'
+        ? menuItems
+        : menuItems.filter(
+            item => item.category?.trim() === activeCategory
+          ),
+    [menuItems, activeCategory]
+  );
+
+  function addToCart(item) {
+    if (item.isAvailable === false) return;
+
+    setCart(previous => {
+      const existing = previous.find(
+        cartItem => cartItem._id === item._id
+      );
+
+      if (existing) {
+        return previous.map(cartItem =>
+          cartItem._id === item._id
+            ? {
+                ...cartItem,
+                quantity: cartItem.quantity + 1,
+              }
+            : cartItem
+        );
+      }
+
+      return [...previous, { ...item, quantity: 1 }];
+    });
+  }
+
+  function changeQuantity(id, change) {
+    setCart(previous =>
+      previous
+        .map(item =>
+          item._id === id
+            ? { ...item, quantity: item.quantity + change }
+            : item
         )
-    }, [])
+        .filter(item => item.quantity > 0)
+    );
+  }
 
-    useEffect(() => {
-        let cancelled = false
+  const cartCount = cart.reduce(
+    (sum, item) => sum + item.quantity,
+    0
+  );
 
-        async function loadMenu() {
-            setLoading(true)
-            setError('')
-            setMenuItems([])
-            setShop(null)
+  const cartTotal = cart.reduce(
+    (sum, item) => sum + item.price * item.quantity,
+    0
+  );
 
-            try {
-                const result = await apiRequest('/api/shops')
-                const shops = result.data || []
-
-                const matchedShop = shops.find(
-                    (item) => item.category === currentShop.category,
-                )
-
-                if (!matchedShop) {
-                    throw new Error(
-                        `${currentShop.name} was not found. Please check the backend menu data.`,
-                    )
-                }
-
-                const menuResult = await apiRequest(
-                    `/api/shops/${matchedShop._id}/menu`,
-                )
-
-                if (cancelled) return
-
-                setShop(matchedShop)
-                setMenuItems(
-                    (menuResult.data || []).map((item) => ({
-                        ...item,
-                        id: item._id,
-                    })),
-                )
-            } catch (err) {
-                if (!cancelled) {
-                    setError(err.message || 'Unable to load the menu.')
-                }
-            } finally {
-                if (!cancelled) setLoading(false)
-            }
-        }
-
-        loadMenu()
-
-        return () => {
-            cancelled = true
-        }
-    }, [currentShop.category, currentShop.name])
-
-    useEffect(() => {
-        let cancelled = false
-
-        async function loadInitialCart() {
-            setCartLoading(true)
-            setCartError('')
-
-            try {
-                await loadCart()
-            } catch (err) {
-                if (!cancelled) {
-                    setCartError(err.message || 'Unable to load your cart.')
-                }
-            } finally {
-                if (!cancelled) setCartLoading(false)
-            }
-        }
-
-        loadInitialCart()
-
-        return () => {
-            cancelled = true
-        }
-    }, [loadCart])
-
-    const runCartAction = async (itemId, action) => {
-        setBusyItemId(itemId)
-        setActionError('')
-        setCartError('')
-
-        try {
-            await action()
-            await loadCart()
-        } catch (err) {
-            setActionError(err.message || 'Unable to update your cart.')
-        } finally {
-            setBusyItemId(null)
-        }
-    }
-
-    const addToCart = (item) => {
-        if (!item.isAvailable || item.price == null) return
-
-        runCartAction(item._id, () =>
-            apiRequest('/api/cart/add', {
-                method: 'POST',
-                body: JSON.stringify({
-                    menuItemId: item._id,
-                    quantity: 1,
-                }),
-            }),
-        )
-    }
-
-    const increaseQuantity = (item) => {
-        runCartAction(item.id, () =>
-            apiRequest('/api/cart/add', {
-                method: 'POST',
-                body: JSON.stringify({
-                    menuItemId: item.menuItemId,
-                    quantity: 1,
-                }),
-            }),
-        )
-    }
-
-    const decreaseQuantity = (item) => {
-        runCartAction(item.id, () => {
-            if (item.quantity <= 1) {
-                return apiRequest(`/api/cart/item/${item.id}`, {
-                    method: 'DELETE',
-                })
-            }
-
-            return apiRequest(`/api/cart/item/${item.id}`, {
-                method: 'PATCH',
-                body: JSON.stringify({
-                    quantity: item.quantity - 1,
-                }),
-            })
-        })
-    }
-
-    const removeFromCart = (item) => {
-        runCartAction(item.id, () =>
-            apiRequest(`/api/cart/item/${item.id}`, {
-                method: 'DELETE',
-            }),
-        )
-    }
-
-    const cartItemCount = useMemo(
-        () => cart.reduce((total, item) => total + item.quantity, 0),
-        [cart],
-    )
-
-    const cartTotal = useMemo(
-        () =>
-            cart.reduce(
-                (total, item) => total + Number(item.price || 0) * item.quantity,
-                0,
-            ),
-        [cart],
-    )
-
+  if (loading) {
     return (
-        <main className="min-h-screen bg-[#f5efe7] text-[#342c29]">
-            <header className="border-b border-[#d8c9ba] bg-[#fbf8f3]">
-                <div className="mx-auto max-w-7xl px-6 py-5">
-                    <p className="text-lg font-semibold text-[#641f2b]">CampusHub</p>
-                    <p className="text-xs text-[#766d63]">{currentShop.name}</p>
-                </div>
-            </header>
+      <div className="p-8 text-center text-gray-600">
+        Loading menu items...
+      </div>
+    );
+  }
 
-            <div className="mx-auto max-w-7xl px-6 py-10">
-                <button
-                    type="button"
-                    onClick={onBack}
-                    className="mb-6 text-sm font-medium text-[#641f2b]"
-                >
-                    ← Back to Dashboard
-                </button>
+  if (error) {
+    return (
+      <div className="m-6 rounded-lg bg-red-50 p-5 text-red-700">
+        <p>{error}</p>
+        <button
+          onClick={onBack}
+          className="mt-4 rounded-lg bg-red-700 px-4 py-2 text-white"
+        >
+          Back to Shops
+        </button>
+      </div>
+    );
+  }
 
-                <section className="mb-10">
-                    <p className="mb-2 text-sm font-medium uppercase tracking-[0.18em] text-[#8a4a55]">
-                        Menu
-                    </p>
+  return (
+    <main className="mx-auto max-w-7xl px-4 py-8">
+      <header className="mb-8">
+        <button
+          onClick={onBack}
+          className="mb-5 text-sm font-semibold text-orange-700 hover:underline"
+        >
+          ← Back to Shops
+        </button>
 
-                    <h1 className="font-serif text-3xl font-semibold text-[#342c29] sm:text-4xl">
-                        {shop?.name || currentShop.name}
-                    </h1>
+        <p className="text-sm font-semibold uppercase tracking-wider text-orange-600">
+          CampusHub Menu
+        </p>
 
-                    <p className="mt-2 max-w-2xl text-sm leading-6 text-[#766d63]">
-                        {currentShop.description}
-                    </p>
-                </section>
+        <h1 className="mt-2 text-3xl font-bold text-gray-900">
+          {selectedShop?.name}
+        </h1>
 
-                {loading && (
-                    <p className="py-8 text-sm text-[#766d63]">Loading menu...</p>
-                )}
+        <p className="mt-2 text-gray-600">
+          Browse available items and add them to your cart.
+        </p>
 
-                {!loading && error && (
-                    <div className="border border-red-200 bg-red-50 p-5 text-sm text-red-700">
-                        <p>{error}</p>
-                        <button
-                            type="button"
-                            onClick={() => window.location.reload()}
-                            className="mt-3 font-semibold underline"
-                        >
-                            Reload page
-                        </button>
-                    </div>
-                )}
+        <p className="mt-3 text-sm text-gray-500">
+          {menuItems.length} menu items available
+        </p>
 
-                {!loading && !error && menuItems.length === 0 && (
-                    <p className="py-8 text-sm text-[#766d63]">
-                        No menu items are available for this outlet.
-                    </p>
-                )}
+        {currentShop &&
+          menuItems.length !== currentShop.expectedCount && (
+            <p className="mt-2 text-sm text-amber-700">
+              Expected {currentShop.expectedCount} items, but received{' '}
+              {menuItems.length}.
+            </p>
+          )}
+      </header>
 
-                {!loading && !error && (
-                    <div className="space-y-10">
-                        {currentShop.categories.map((category) => {
-                            const categoryItems = menuItems.filter(
-                                (item) => item.category === category,
-                            )
+      <section className="mb-6">
+        <div className="flex gap-2 overflow-x-auto pb-3">
+          {categories.map(category => (
+            <button
+              key={category}
+              onClick={() => setActiveCategory(category)}
+              className={`whitespace-nowrap rounded-full px-5 py-2 text-sm font-medium ${
+                activeCategory === category
+                  ? 'bg-orange-600 text-white'
+                  : 'bg-gray-100 text-gray-700 hover:bg-orange-100'
+              }`}
+            >
+              {category}
+            </button>
+          ))}
+        </div>
+      </section>
 
-                            if (categoryItems.length === 0) return null
+      <section className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        {filteredItems.map(item => (
+          <article
+            key={item._id}
+            className="flex items-center justify-between gap-3 rounded-xl border border-gray-200 bg-white p-4 shadow-sm"
+          >
+            <div className="min-w-0">
+              <h2 className="font-semibold text-gray-900">
+                {item.name}
+              </h2>
 
-                            return (
-                                <section key={category}>
-                                    <h2 className="mb-4 text-xl font-semibold text-[#641f2b]">
-                                        {category}
-                                    </h2>
-
-                                    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                                        {categoryItems.map((item) => {
-                                            const unavailable =
-                                                !item.isAvailable || item.price == null
-
-                                            return (
-                                                <article
-                                                    key={item._id}
-                                                    className="border border-[#d8c9ba] bg-[#fbf8f3] p-5"
-                                                >
-                                                    <div className="flex items-start justify-between gap-4">
-                                                        <div>
-                                                            <h3 className="text-lg font-semibold text-[#342c29]">
-                                                                {item.name}
-                                                            </h3>
-
-                                                            <p className="mt-1 text-sm text-[#766d63]">
-                                                                {item.price == null
-                                                                    ? 'Price unavailable'
-                                                                    : item.isAvailable
-                                                                        ? 'Available'
-                                                                        : 'Unavailable'}
-                                                            </p>
-                                                        </div>
-
-                                                        <p className="text-base font-semibold text-[#641f2b]">
-                                                            {item.price == null
-                                                                ? 'Price unavailable'
-                                                                : `₹${item.price}`}
-                                                        </p>
-                                                    </div>
-
-                                                    <button
-                                                        type="button"
-                                                        disabled={unavailable || busyItemId === item._id}
-                                                        onClick={() => addToCart(item)}
-                                                        className="mt-4 text-sm font-medium text-[#641f2b] disabled:cursor-not-allowed disabled:text-[#a8a099]"
-                                                    >
-                                                        {busyItemId === item._id
-                                                            ? 'Adding...'
-                                                            : unavailable
-                                                                ? 'Unavailable'
-                                                                : 'Add to Cart'}
-                                                    </button>
-                                                </article>
-                                            )
-                                        })}
-                                    </div>
-                                </section>
-                            )
-                        })}
-                    </div>
-                )}
-
-                {actionError && (
-                    <p
-                        role="alert"
-                        className="mt-6 border border-red-200 bg-red-50 p-4 text-sm text-red-700"
-                    >
-                        {actionError}
-                    </p>
-                )}
-
-                {cartError && (
-                    <p
-                        role="alert"
-                        className="mt-6 border border-red-200 bg-red-50 p-4 text-sm text-red-700"
-                    >
-                        Cart: {cartError}
-                    </p>
-                )}
-
-                {cartLoading && (
-                    <p className="mt-8 text-sm text-[#766d63]">Loading your cart...</p>
-                )}
-
-                {!cartLoading && cart.length > 0 && (
-                    <section className="mt-12 border border-[#d8c9ba] bg-[#fbf8f3] p-6">
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <p className="text-sm font-medium uppercase tracking-[0.18em] text-[#8a4a55]">
-                                    Cart
-                                </p>
-                                <h2 className="mt-1 text-2xl font-semibold text-[#342c29]">
-                                    Your Cart
-                                </h2>
-                            </div>
-
-                            <p className="text-sm text-[#766d63]">
-                                {cartItemCount} item(s)
-                            </p>
-                        </div>
-
-                        <div className="mt-6 space-y-4">
-                            {cart.map((item) => (
-                                <div
-                                    key={item.id}
-                                    className="flex flex-col gap-4 border-b border-[#e2d7ca] pb-4 sm:flex-row sm:items-center sm:justify-between"
-                                >
-                                    <div>
-                                        <h3 className="font-semibold text-[#342c29]">
-                                            {item.name}
-                                        </h3>
-                                        <p className="text-sm text-[#766d63]">
-                                            ₹{item.price} each
-                                        </p>
-                                    </div>
-
-                                    <div className="flex items-center gap-4">
-                                        <div className="flex items-center border border-[#d8c9ba]">
-                                            <button
-                                                type="button"
-                                                disabled={busyItemId === item.id}
-                                                onClick={() => decreaseQuantity(item)}
-                                                aria-label={`Decrease ${item.name} quantity`}
-                                                className="px-3 py-2 text-lg text-[#641f2b] hover:bg-[#f5efe7] disabled:opacity-50"
-                                            >
-                                                −
-                                            </button>
-
-                                            <span className="min-w-10 text-center text-sm font-medium">
-                                                {item.quantity}
-                                            </span>
-
-                                            <button
-                                                type="button"
-                                                disabled={busyItemId === item.id}
-                                                onClick={() => increaseQuantity(item)}
-                                                aria-label={`Increase ${item.name} quantity`}
-                                                className="px-3 py-2 text-lg text-[#641f2b] hover:bg-[#f5efe7] disabled:opacity-50"
-                                            >
-                                                +
-                                            </button>
-                                        </div>
-
-                                        <p className="min-w-16 text-right font-semibold text-[#641f2b]">
-                                            ₹{Number(item.price) * item.quantity}
-                                        </p>
-
-                                        <button
-                                            type="button"
-                                            disabled={busyItemId === item.id}
-                                            onClick={() => removeFromCart(item)}
-                                            className="text-sm font-medium text-red-600 hover:text-red-800 disabled:opacity-50"
-                                        >
-                                            Remove
-                                        </button>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-
-                        <div className="mt-6 flex items-center justify-between border-t border-[#d8c9ba] pt-5">
-                            <p className="font-semibold text-[#342c29]">Total</p>
-                            <p className="text-xl font-semibold text-[#641f2b]">
-                                ₹{cartTotal}
-                            </p>
-                        </div>
-                    </section>
-                )}
-
-                {!cartLoading && cart.length === 0 && !cartError && (
-                    <p className="mt-8 text-sm text-[#766d63]">
-                        Your cart is empty. Add an item to get started.
-                    </p>
-                )}
+              <p className="mt-1 font-bold text-orange-600">
+                ₹{item.price}
+              </p>
             </div>
-        </main>
-    )
-}
 
-export default Menu
+            {item.isAvailable === false ? (
+              <span className="shrink-0 text-sm text-red-600">
+                Unavailable
+              </span>
+            ) : (
+              <button
+                onClick={() => addToCart(item)}
+                className="shrink-0 rounded-lg bg-orange-600 px-4 py-2 text-sm font-semibold text-white hover:bg-orange-700"
+              >
+                Add +
+              </button>
+            )}
+          </article>
+        ))}
+      </section>
+
+      {filteredItems.length === 0 && (
+        <p className="py-12 text-center text-gray-500">
+          No items found in this category.
+        </p>
+      )}
+
+      {cartCount > 0 && (
+        <aside className="fixed bottom-4 left-4 right-4 z-50 mx-auto max-w-3xl rounded-xl bg-gray-900 p-4 text-white shadow-xl">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <p className="font-semibold">
+                {cartCount} items in cart
+              </p>
+
+              <p className="text-sm text-gray-300">
+                Total: ₹{cartTotal}
+              </p>
+            </div>
+
+            <div className="flex flex-wrap gap-2">
+              {cart.map(item => (
+                <div
+                  key={item._id}
+                  className="flex items-center gap-2 rounded-lg bg-gray-700 px-2 py-1 text-sm"
+                >
+                  <span>{item.name}</span>
+
+                  <button
+                    onClick={() => changeQuantity(item._id, -1)}
+                    aria-label={`Remove one ${item.name}`}
+                  >
+                    −
+                  </button>
+
+                  <span>{item.quantity}</span>
+
+                  <button
+                    onClick={() => changeQuantity(item._id, 1)}
+                    aria-label={`Add one ${item.name}`}
+                  >
+                    +
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        </aside>
+      )}
+    </main>
+  );
+}
