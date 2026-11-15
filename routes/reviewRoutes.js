@@ -13,4 +13,4 @@ router.post('/', authMiddleware, createReview);
 // Get reviews for a shop
 router.get('/shop/:shopId', getShopReviews);
 
-module.exports = router;5
+module.exports = router;

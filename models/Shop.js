@@ -31,5 +31,6 @@ const shopSchema = new mongoose.Schema(
 );
 
 shopSchema.index({ shopkeeperId: 1 });
+shopSchema.index({ category: 1 });
 
 module.exports = mongoose.model('Shop', shopSchema);

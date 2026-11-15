@@ -1,26 +1,6 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
-
-const SHOP_CONFIG = {
-    '1': {
-        category: 'canteen',
-        name: 'Campus Canteen',
-        description:
-            'Browse the available food and beverages from the campus canteen.',
-    },
-    '2': {
-        category: 'foodcourt',
-        name: 'Akshay Food Court',
-        description:
-            'Explore the food, snacks, beverages and other items available at Akshay Food Court.',
-    },
-    '3': {
-        category: 'bakery',
-        name: 'Campus Bakery',
-        description:
-            'Browse snacks, bakery items, burgers and refreshments from the campus bakery.',
-    },
-}
+import ShopReviews from './ShopReviews'
 
 const getToken = () => localStorage.getItem('campushub_token')
 
@@ -55,14 +35,20 @@ async function apiRequest(url, options = {}) {
     return result
 }
 
-function Menu({ shopId, onBack }) {
-    const currentShop = SHOP_CONFIG[shopId] || SHOP_CONFIG['1']
+function Menu({ shopId, onBack, userRole }) {
+    const isStudent = userRole === 'student'
+
+    // shopId is a MongoDB ObjectId string; look up legacy config for fallback display
+    const currentShop = {
+        name: 'Campus Shop',
+        description: 'Browse menu items from this campus outlet.',
+    }
 
     const [shop, setShop] = useState(null)
     const [menuItems, setMenuItems] = useState([])
     const [cart, setCart] = useState([])
     const [loading, setLoading] = useState(true)
-    const [cartLoading, setCartLoading] = useState(true)
+    const [cartLoading, setCartLoading] = useState(isStudent)
     const [error, setError] = useState('')
     const [cartError, setCartError] = useState('')
     const [actionError, setActionError] = useState('')
@@ -96,17 +82,13 @@ function Menu({ shopId, onBack }) {
             setShop(null)
 
             try {
-                const result = await apiRequest('/api/shops')
-                const shops = result.data || []
-
-                const matchedShop = shops.find(
-                    (item) => item.category === currentShop.category,
-                )
+                // shopId is a MongoDB ObjectId — find it from the shops list
+                const shopsResult = await apiRequest('/api/shops')
+                const shops = shopsResult.data || []
+                const matchedShop = shops.find((s) => s._id === shopId)
 
                 if (!matchedShop) {
-                    throw new Error(
-                        `${currentShop.name} was not found. Please check the backend menu data.`,
-                    )
+                    throw new Error('The requested shop was not found. Please return to the dashboard and try again.')
                 }
 
                 const firstPage = await apiRequest(
@@ -162,9 +144,11 @@ function Menu({ shopId, onBack }) {
         return () => {
             cancelled = true
         }
-    }, [currentShop.category, currentShop.name])
+    }, [shopId])
 
     useEffect(() => {
+        if (!isStudent) return
+
         let cancelled = false
 
         async function loadInitialCart() {
@@ -187,7 +171,7 @@ function Menu({ shopId, onBack }) {
         return () => {
             cancelled = true
         }
-    }, [loadCart])
+    }, [isStudent, loadCart])
 
     const runCartAction = async (itemId, action) => {
         setBusyItemId(itemId)
@@ -285,7 +269,7 @@ function Menu({ shopId, onBack }) {
                         CampusHub
                     </p>
                     <p className="text-xs text-[#766d63]">
-                        {currentShop.name}
+                        {shop?.name || currentShop.name}
                     </p>
                 </div>
             </header>
@@ -309,7 +293,7 @@ function Menu({ shopId, onBack }) {
                     </h1>
 
                     <p className="mt-2 max-w-2xl text-sm leading-6 text-[#766d63]">
-                        {currentShop.description}
+                        {shop?.description || currentShop.description}
                     </p>
                 </section>
 
@@ -385,23 +369,25 @@ function Menu({ shopId, onBack }) {
                                                         </p>
                                                     </div>
 
-                                                    <button
-                                                        type="button"
-                                                        disabled={
-                                                            unavailable ||
-                                                            busyItemId === item._id
-                                                        }
-                                                        onClick={() =>
-                                                            addToCart(item)
-                                                        }
-                                                        className="mt-4 text-sm font-medium text-[#641f2b] disabled:cursor-not-allowed disabled:text-[#a8a099]"
-                                                    >
-                                                        {busyItemId === item._id
-                                                            ? 'Adding...'
-                                                            : unavailable
-                                                                ? 'Unavailable'
-                                                                : 'Add to Cart'}
-                                                    </button>
+                                                    {isStudent && (
+                                                        <button
+                                                            type="button"
+                                                            disabled={
+                                                                unavailable ||
+                                                                busyItemId === item._id
+                                                            }
+                                                            onClick={() =>
+                                                                addToCart(item)
+                                                            }
+                                                            className="mt-4 text-sm font-medium text-[#641f2b] disabled:cursor-not-allowed disabled:text-[#a8a099]"
+                                                        >
+                                                            {busyItemId === item._id
+                                                                ? 'Adding...'
+                                                                : unavailable
+                                                                    ? 'Unavailable'
+                                                                    : 'Add to Cart'}
+                                                        </button>
+                                                    )}
                                                 </article>
                                             )
                                         })}
@@ -412,7 +398,7 @@ function Menu({ shopId, onBack }) {
                     </div>
                 )}
 
-                {actionError && (
+                {isStudent && actionError && (
                     <p
                         role="alert"
                         className="mt-6 border border-red-200 bg-red-50 p-4 text-sm text-red-700"
@@ -421,7 +407,7 @@ function Menu({ shopId, onBack }) {
                     </p>
                 )}
 
-                {cartError && (
+                {isStudent && cartError && (
                     <p
                         role="alert"
                         className="mt-6 border border-red-200 bg-red-50 p-4 text-sm text-red-700"
@@ -430,13 +416,13 @@ function Menu({ shopId, onBack }) {
                     </p>
                 )}
 
-                {cartLoading && (
+                {isStudent && cartLoading && (
                     <p className="mt-8 text-sm text-[#766d63]">
                         Loading your cart...
                     </p>
                 )}
 
-                {!cartLoading && cart.length > 0 && (
+                {isStudent && !cartLoading && cart.length > 0 && (
                     <section className="mt-12 border border-[#d8c9ba] bg-[#fbf8f3] p-6">
                         <div className="flex items-center justify-between">
                             <div>
@@ -532,11 +518,14 @@ function Menu({ shopId, onBack }) {
                     </section>
                 )}
 
-                {!cartLoading && cart.length === 0 && !cartError && (
+                {isStudent && !cartLoading && cart.length === 0 && !cartError && (
                     <p className="mt-8 text-sm text-[#766d63]">
                         Your cart is empty. Add an item to get started.
                     </p>
                 )}
+
+                {/* Shop Reviews */}
+                {shop && <ShopReviews shopId={shop._id} userRole={userRole} />}
             </div>
         </main>
     )
