@@ -147,4 +147,7 @@ orderSchema.pre('validate', function (next) {
   next();
 });
 
+orderSchema.index({ userId: 1, createdAt: -1 });
+orderSchema.index({ shopId: 1, status: 1, createdAt: -1 });
+
 module.exports = mongoose.model('Order', orderSchema);
