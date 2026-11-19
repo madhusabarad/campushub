@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import Dashboard from './Dashboard'
 import Menu from './Menu'
 import Cart from './Cart'
+import Xerox from './Xerox'
 import AdminDashboard from './AdminDashboard'
 import ShopkeeperDashboard from './ShopkeeperDashboard'
 import './App.css'
@@ -330,6 +331,12 @@ function App() {
       if (state.page === 'cart') {
         setCurrentPage('cart')
         setSelectedShopId(null)
+        return
+      }
+
+      if (state.page === 'xerox') {
+        setCurrentPage('xerox')
+        setSelectedShopId(null)
       }
     }
 
@@ -396,6 +403,17 @@ function App() {
     )
   }
 
+  const openXerox = () => {
+    setCurrentPage('xerox')
+    setSelectedShopId(null)
+
+    window.history.pushState(
+      { page: 'xerox' },
+      '',
+      window.location.pathname
+    )
+  }
+
   const goToDashboard = () => {
     setCurrentPage('dashboard')
     setSelectedShopId(null)
@@ -435,10 +453,15 @@ function App() {
     return <Cart onBack={goToDashboard} />
   }
 
+  if (currentPage === 'xerox') {
+    return <Xerox onBack={goToDashboard} userRole={userRole} />
+  }
+
   return (
     <Dashboard
       onOpenMenu={openMenu}
       onOpenCart={openCart}
+      onOpenXerox={openXerox}
       onLogout={handleLogout}
       userRole={userRole}
       userName={userName}

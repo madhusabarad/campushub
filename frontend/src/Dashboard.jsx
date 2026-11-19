@@ -136,7 +136,7 @@ function RecentOrders({ orders, loading, error, onRetry }) {
     )
 }
 
-function Dashboard({ onOpenMenu, onOpenCart, onLogout, userRole, userName }) {
+function Dashboard({ onOpenMenu, onOpenCart, onOpenXerox, onLogout, userRole, userName }) {
     const [shops, setShops] = useState([])
     const [shopsLoading, setShopsLoading] = useState(true)
     const [shopsError, setShopsError] = useState('')
@@ -349,6 +349,7 @@ function Dashboard({ onOpenMenu, onOpenCart, onLogout, userRole, userName }) {
 
                             <button
                                 type="button"
+                                onClick={onOpenXerox}
                                 className="rounded-xl bg-[#7b1e1e] px-6 py-3 font-semibold text-white transition hover:bg-[#641818]"
                             >
                                 Explore Service
