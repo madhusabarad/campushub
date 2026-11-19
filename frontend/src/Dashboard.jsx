@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import Card from './components/Card'
 import Button from './components/Button'
 import Badge from './components/Badge'
@@ -37,32 +37,60 @@ function Dashboard({
   const orders = contextOrders !== null ? contextOrders : localOrders
   const loadingOrders = contextLoading !== null ? contextLoading : loadingLocalOrders
 
+  const [refreshTick, setRefreshTick] = useState(0)
+
+  const triggerLocalRefresh = useCallback(() => {
+    setRefreshTick((t) => t + 1)
+  }, [])
+
   useEffect(() => {
     if (contextOrders !== null) return // Already handled by context
 
     let ignore = false
 
-    async function fetchOrders() {
+    async function loadOrders() {
       try {
         const token = localStorage.getItem('campushub_token')
         if (!token) {
-          if (!ignore) {
-            setLoadingLocalOrders(false)
-          }
+          if (!ignore) setLoadingLocalOrders(false)
           return
         }
 
-        const response = await fetch('/api/orders?limit=10', {
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`,
-          },
-        })
+        const [ordersRes, shopsRes] = await Promise.all([
+          fetch('/api/orders?limit=10', {
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${token}`,
+            },
+          }),
+          fetch('/api/shops?limit=100').catch(() => null),
+        ])
 
         if (!ignore) {
-          if (response.ok) {
-            const result = await response.json()
-            setLocalOrders(Array.isArray(result.data) ? result.data : [])
+          if (ordersRes.ok) {
+            const ordersResult = await ordersRes.json()
+            let shopsMap = new Map()
+            if (shopsRes && shopsRes.ok) {
+              const shopsData = await shopsRes.json().catch(() => ({}))
+              if (Array.isArray(shopsData.data)) {
+                shopsMap = new Map(shopsData.data.map((s) => [String(s._id), s]))
+              }
+            }
+
+            const rawList = Array.isArray(ordersResult.data) ? ordersResult.data : []
+            const orderList = rawList.map((order) => {
+              const shopId = order.shopId?._id || order.shopId
+              const fullShop = shopId ? shopsMap.get(String(shopId)) : null
+              return {
+                ...order,
+                shop: fullShop || order.shopId,
+                shopId: {
+                  ...(typeof order.shopId === 'object' ? order.shopId : {}),
+                  ...(fullShop || {}),
+                },
+              }
+            })
+            setLocalOrders(orderList)
           } else {
             setLocalOrders([])
           }
@@ -76,12 +104,12 @@ function Dashboard({
       }
     }
 
-    fetchOrders()
+    loadOrders()
 
     return () => {
       ignore = true
     }
-  }, [contextOrders])
+  }, [contextOrders, refreshTick])
 
   const filteredOrders = useMemo(() => {
     if (orderFilter === 'active') {
@@ -828,12 +856,14 @@ function Dashboard({
         {paymentModalOrder && (
           <UPIPaymentModal
             order={paymentModalOrder}
+            shop={paymentModalOrder.shop || paymentModalOrder.shopId}
             isOpen={Boolean(paymentModalOrder)}
             showCounterOption={false}
             onClose={() => setPaymentModalOrder(null)}
             onSuccess={() => {
               setPaymentModalOrder(null)
               if (refreshOrders) refreshOrders()
+              triggerLocalRefresh()
             }}
           />
         )}

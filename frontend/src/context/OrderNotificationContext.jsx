@@ -112,12 +112,15 @@ export function OrderNotificationProvider({ children }) {
     }
 
     try {
-      const response = await fetch('/api/orders?limit=10', {
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-      })
+      const [response, shopsRes] = await Promise.all([
+        fetch('/api/orders?limit=10', {
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+        }),
+        fetch('/api/shops?limit=100').catch(() => null),
+      ])
 
       if (!response.ok) {
         setLoadingOrders(false)
@@ -125,7 +128,27 @@ export function OrderNotificationProvider({ children }) {
       }
 
       const result = await response.json()
-      const orderList = Array.isArray(result.data) ? result.data : []
+      let shopsMap = new Map()
+      if (shopsRes && shopsRes.ok) {
+        const shopsData = await shopsRes.json().catch(() => ({}))
+        if (Array.isArray(shopsData.data)) {
+          shopsMap = new Map(shopsData.data.map((s) => [String(s._id), s]))
+        }
+      }
+
+      const rawList = Array.isArray(result.data) ? result.data : []
+      const orderList = rawList.map((order) => {
+        const shopId = order.shopId?._id || order.shopId
+        const fullShop = shopId ? shopsMap.get(String(shopId)) : null
+        return {
+          ...order,
+          shop: fullShop || order.shopId,
+          shopId: {
+            ...(typeof order.shopId === 'object' ? order.shopId : {}),
+            ...(fullShop || {}),
+          },
+        }
+      })
       setOrders(orderList)
 
       const known = { ...knownStatusesRef.current }

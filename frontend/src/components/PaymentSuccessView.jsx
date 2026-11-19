@@ -15,8 +15,44 @@ export default function PaymentSuccessView({
   className = '',
 }) {
   const totalAmount = order.totalAmount ?? paymentDetails.amount ?? 0
-  const paymentId = paymentDetails.razorpay_payment_id || order.paymentId || 'pay_confirmed'
-  const paymentMethod = paymentDetails.method || 'Razorpay Online'
+  const isCounter =
+    order.paymentMethod === 'counter' ||
+    paymentDetails.method?.toLowerCase().includes('counter')
+  const isUpi =
+    order.paymentMethod === 'upi' ||
+    paymentDetails.method?.toLowerCase().includes('upi')
+
+  const paymentId =
+    order.paymentUtr ||
+    paymentDetails.utr ||
+    paymentDetails.razorpay_payment_id ||
+    order._id ||
+    'confirmed'
+
+  const methodLabel = isCounter
+    ? 'Pay at Counter'
+    : isUpi
+      ? 'UPI Verification'
+      : paymentDetails.method || 'Online Payment'
+
+  const badgeVariant = isCounter ? 'warning' : isUpi ? 'warning' : 'success'
+  const badgeText = isCounter
+    ? 'Pay at Counter'
+    : isUpi
+      ? 'Verification Pending'
+      : 'Payment Completed'
+
+  const titleText = isCounter
+    ? 'Order Placed Successfully!'
+    : isUpi
+      ? 'Order Placed & Proof Submitted!'
+      : 'Payment Successful & Order Placed!'
+
+  const descriptionText = isCounter
+    ? `Your campus order has been sent to the kitchen. Please pay ${formatCurrency(totalAmount)} directly at the counter upon pickup.`
+    : isUpi
+      ? `Your UPI payment proof has been submitted for outlet verification. Your campus order has been sent to the kitchen.`
+      : `Your payment of ${formatCurrency(totalAmount)} has been verified. Your campus order has been sent to the kitchen.`
 
   return (
     <div className={`mx-auto max-w-3xl space-y-6 py-4 ${className}`.trim()}>
@@ -27,45 +63,45 @@ export default function PaymentSuccessView({
         </div>
 
         <div className="flex flex-wrap items-center justify-center gap-2 mb-2">
-          <Badge variant="success" size="md">
-            Payment Completed
+          <Badge variant={badgeVariant} size="md">
+            {badgeText}
           </Badge>
           <OrderStatusBadge status={order.status || 'placed'} size="md" />
         </div>
 
         <h1 className="font-serif text-3xl sm:text-4xl font-bold text-text">
-          Payment Successful & Order Placed!
+          {titleText}
         </h1>
 
         <p className="mt-2 text-sm text-muted-text max-w-md mx-auto">
-          Your payment of{' '}
-          <strong className="text-primary font-bold">{formatCurrency(totalAmount)}</strong>{' '}
-          has been verified via Razorpay. Your campus order has been sent to the kitchen.
+          {descriptionText}
         </p>
 
         {/* Payment Receipt Summary Card */}
         <div className="mx-auto my-6 max-w-md rounded-2xl border border-border bg-background/50 p-4 text-xs space-y-2.5 text-left shadow-xs">
           <div className="flex items-center justify-between border-b border-border/60 pb-2">
             <span className="font-bold uppercase tracking-wider text-muted-text">
-              Payment Receipt
+              Order Receipt
             </span>
-            <Badge variant="success" size="sm">
-              Razorpay Verified
+            <Badge variant={badgeVariant} size="sm">
+              {badgeText}
             </Badge>
           </div>
 
           <div className="flex items-center justify-between">
-            <span className="text-muted-text">Payment ID:</span>
-            <span className="font-mono font-semibold text-text">{paymentId}</span>
+            <span className="text-muted-text">Order / Reference:</span>
+            <span className="font-mono font-semibold text-text truncate max-w-[200px]">
+              {paymentId}
+            </span>
           </div>
 
           <div className="flex items-center justify-between">
             <span className="text-muted-text">Payment Method:</span>
-            <span className="font-medium text-text capitalize">{paymentMethod}</span>
+            <span className="font-medium text-text capitalize">{methodLabel}</span>
           </div>
 
           <div className="flex items-center justify-between">
-            <span className="text-muted-text">Total Paid:</span>
+            <span className="text-muted-text">{isCounter ? 'Amount Due:' : 'Total Amount:'}</span>
             <span className="text-sm font-bold text-primary">{formatCurrency(totalAmount)}</span>
           </div>
 
@@ -138,4 +174,3 @@ export default function PaymentSuccessView({
     </div>
   )
 }
-

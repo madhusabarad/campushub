@@ -5,17 +5,11 @@ import Badge from './components/Badge'
 import Input from './components/Input'
 import CheckoutSummary from './components/CheckoutSummary'
 import UPIPaymentForm from './components/UPIPaymentForm'
-import RazorpayPaymentButton from './components/RazorpayPaymentButton'
-import RazorpayModal from './components/RazorpayModal'
-import PaymentProcessingView from './components/PaymentProcessingView'
 import PaymentSuccessView from './components/PaymentSuccessView'
-import PaymentFailureView from './components/PaymentFailureView'
 import { useOrderNotifications } from './context/OrderNotificationContext'
 import {
   calculateOrderPricing,
   formatCurrency,
-  generatePaymentReference,
-  PAYMENT_METHODS,
 } from './utils/checkoutPayment'
 
 const getHeaders = () => {
@@ -51,6 +45,7 @@ async function apiRequest(url, options = {}) {
 
 function Cart({ onBack = () => {} }) {
   const [cartItems, setCartItems] = useState([])
+  const [cartShop, setCartShop] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [actionError, setActionError] = useState('')
@@ -59,13 +54,9 @@ function Cart({ onBack = () => {} }) {
   const [submittingOrder, setSubmittingOrder] = useState(false)
   const [orderNotes, setOrderNotes] = useState('')
 
-  // Checkout & Payment flow states: 'cart' | 'checkout' | 'processing' | 'success' | 'failed'
+  // Checkout flow stages: 'cart' | 'checkout' | 'payment' | 'success'
   const [checkoutStage, setCheckoutStage] = useState('cart')
-  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('razorpay_all')
-  const [isRazorpayModalOpen, setIsRazorpayModalOpen] = useState(false)
-  const [processingRefId, setProcessingRefId] = useState('')
   const [paymentDetails, setPaymentDetails] = useState(null)
-  const [paymentFailureReason, setPaymentFailureReason] = useState('generic')
   const [orderSuccess, setOrderSuccess] = useState(null)
   const [completedItems, setCompletedItems] = useState([])
 
@@ -83,16 +74,38 @@ function Cart({ onBack = () => {} }) {
     const result = await apiRequest('/api/cart')
     const data = result.data || {}
 
-    const items = (data.items || [])
-      .filter((item) => item.menuItemId)
-      .map((item) => ({
-        id: item._id,
-        menuItemId: item.menuItemId._id,
-        name: item.menuItemId.name,
-        category: item.menuItemId.category || 'Menu Item',
-        price: Number(item.price ?? item.menuItemId.price ?? 0),
-        quantity: item.quantity,
-      }))
+    const rawItems = (data.items || []).filter((item) => item.menuItemId)
+    const firstShopId = rawItems[0]?.menuItemId?.shopId
+
+    let resolvedShop = null
+    if (firstShopId) {
+      try {
+        const shopsRes = await fetch('/api/shops?limit=100')
+        const shopsData = await shopsRes.json()
+        if (shopsData.success && Array.isArray(shopsData.data)) {
+          resolvedShop =
+            shopsData.data.find(
+              (s) => String(s._id) === String(firstShopId)
+            ) || null
+          if (resolvedShop) {
+            setCartShop(resolvedShop)
+          }
+        }
+      } catch (err) {
+        console.error('Failed to load shop details for cart:', err)
+      }
+    }
+
+    const items = rawItems.map((item) => ({
+      id: item._id,
+      menuItemId: item.menuItemId._id,
+      name: item.menuItemId.name,
+      category: item.menuItemId.category || 'Menu Item',
+      price: Number(item.price ?? item.menuItemId.price ?? 0),
+      quantity: item.quantity,
+      shopId: item.menuItemId.shopId,
+      shop: resolvedShop,
+    }))
 
     setCartItems(items)
   }, [])
@@ -195,7 +208,7 @@ function Cart({ onBack = () => {} }) {
 
   const { itemsCount, totalAmount } = pricing
 
-  // Places order from finalized cart, then transitions to payment step
+  // Places order from finalized cart, then transitions to payment choice step
   const handlePlaceOrder = async () => {
     setActionError('')
     setSubmittingOrder(true)
@@ -209,7 +222,40 @@ function Cart({ onBack = () => {} }) {
       })
 
       const placedOrder = result.data || {}
+
+      // Ensure shop object with upiId is attached to order data
+      let finalShop = cartShop
+      const targetShopId =
+        placedOrder.shopId?._id || placedOrder.shopId || cartItems[0]?.shopId
+
+      if ((!finalShop || !finalShop.upiId) && targetShopId) {
+        try {
+          const shopsRes = await fetch('/api/shops?limit=100')
+          const shopsData = await shopsRes.json()
+          if (shopsData.success && Array.isArray(shopsData.data)) {
+            const matched = shopsData.data.find(
+              (s) => String(s._id) === String(targetShopId)
+            )
+            if (matched) {
+              finalShop = matched
+              setCartShop(matched)
+            }
+          }
+        } catch (err) {
+          console.error('Failed to load shop details during order placement:', err)
+        }
+      }
+
+      if (finalShop) {
+        placedOrder.shop = finalShop
+        placedOrder.shopId = {
+          ...(typeof placedOrder.shopId === 'object' ? placedOrder.shopId : {}),
+          ...finalShop,
+        }
+      }
+
       setOrderSuccess(placedOrder)
+      setCompletedItems([...cartItems])
       setCartItems([])
       setCheckoutStage('payment')
 
@@ -226,76 +272,7 @@ function Cart({ onBack = () => {} }) {
     }
   }
 
-  // Initiates Razorpay payment UI
-  const handleInitiateRazorpay = () => {
-    setActionError('')
-    setIsRazorpayModalOpen(true)
-  }
-
-  // Executes order placement after payment confirmation
-  const handlePaymentSuccess = async (paymentData) => {
-    setIsRazorpayModalOpen(false)
-    setSubmittingOrder(true)
-    setCheckoutStage('processing')
-    const ref = generatePaymentReference('RZP')
-    setProcessingRefId(ref)
-    setCompletedItems([...cartItems])
-
-    try {
-      const result = await apiRequest('/api/orders', {
-        method: 'POST',
-        body: JSON.stringify({
-          notes: orderNotes.trim() || undefined,
-        }),
-      })
-
-      const placedOrder = result.data || { success: true }
-      setOrderSuccess(placedOrder)
-      setPaymentDetails({
-        ...paymentData,
-        amount: totalAmount,
-      })
-      setCartItems([])
-      setCheckoutStage('success')
-
-      if (notifyOrderStatus && placedOrder._id) {
-        notifyOrderStatus(placedOrder)
-      }
-      if (refreshOrders) {
-        refreshOrders()
-      }
-    } catch (err) {
-      setActionError(
-        err.message || 'Payment was recorded but order placement encountered an error.',
-      )
-      setPaymentFailureReason('network_error')
-      setCheckoutStage('failed')
-    } finally {
-      setSubmittingOrder(false)
-    }
-  }
-
-  // Handles payment cancellation or modal dismissal
-  const handlePaymentCancel = (reason = 'user_cancelled') => {
-    setIsRazorpayModalOpen(false)
-    setPaymentFailureReason(reason)
-    setCheckoutStage('failed')
-  }
-
-  // Handles payment failure from gateway or bank
-  const handlePaymentFailure = (reason = 'bank_declined') => {
-    setIsRazorpayModalOpen(false)
-    setPaymentFailureReason(reason)
-    setCheckoutStage('failed')
-  }
-
-  // Action: Retry payment
-  const handleRetryPayment = () => {
-    setCheckoutStage('checkout')
-    setIsRazorpayModalOpen(true)
-  }
-
-  // Action: Return to cart from checkout/failure
+  // Action: Return to cart from checkout
   const handleBackToCart = () => {
     setCheckoutStage('cart')
     setActionError('')
@@ -314,7 +291,7 @@ function Cart({ onBack = () => {} }) {
     <main className="min-h-full bg-background text-text">
       <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8 space-y-6 sm:space-y-8">
         {/* Navigation back to Dashboard if handler provided */}
-        {onBack && checkoutStage !== 'processing' && (
+        {onBack && (
           <div>
             <Button
               type="button"
@@ -407,7 +384,7 @@ function Cart({ onBack = () => {} }) {
           </Card>
         )}
 
-        {/* Empty Cart State (when not in success/failure view) */}
+        {/* Empty Cart State (when not in payment/success view) */}
         {!loading &&
           !error &&
           checkoutStage === 'cart' &&
@@ -420,7 +397,7 @@ function Cart({ onBack = () => {} }) {
                 Your cart is empty
               </h2>
               <p className="mt-2 text-sm text-muted-text max-w-md mx-auto">
-                Looks like you haven't added any dishes or beverages yet. Explore
+                Looks like you haven&apos;t added any dishes or beverages yet. Explore
                 campus outlets to add your favorite items.
               </p>
               <div className="mt-6">
@@ -436,7 +413,7 @@ function Cart({ onBack = () => {} }) {
             </Card>
           )}
 
-        {/* 1. Payment Success View */}
+        {/* Step 4: Payment / Order Success Confirmation View */}
         {!loading && checkoutStage === 'success' && orderSuccess && (
           <PaymentSuccessView
             order={orderSuccess}
@@ -447,35 +424,83 @@ function Cart({ onBack = () => {} }) {
           />
         )}
 
-        {/* 2. Payment Processing View */}
-        {!loading && checkoutStage === 'processing' && (
-          <PaymentProcessingView
-            amount={totalAmount}
-            referenceId={processingRefId}
-            onCancel={() => handlePaymentCancel('user_cancelled')}
-          />
+        {/* Step 3: Payment Choice View (UPI or Counter) */}
+        {!loading && checkoutStage === 'payment' && orderSuccess && (
+          <div className="mx-auto max-w-2xl py-2 space-y-6">
+            {/* Progress Stepper showing Step 3 active */}
+            <nav
+              aria-label="Checkout Progress"
+              className="rounded-2xl border border-border bg-surface p-4 sm:p-5 shadow-xs"
+            >
+              <ol className="flex items-center justify-between max-w-xl mx-auto text-xs sm:text-sm font-semibold">
+                <li className="flex items-center gap-2 text-muted-text">
+                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-primary/10 text-primary text-xs font-bold">
+                    ✓
+                  </span>
+                  <span>Review Cart</span>
+                </li>
+
+                <li className="text-border font-bold">——</li>
+
+                <li className="flex items-center gap-2 text-muted-text">
+                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-primary/10 text-primary text-xs font-bold">
+                    ✓
+                  </span>
+                  <span>Review &amp; Place</span>
+                </li>
+
+                <li className="text-border font-bold">——</li>
+
+                <li className="flex items-center gap-2 text-primary font-bold">
+                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-primary text-white text-xs font-bold">
+                    3
+                  </span>
+                  <span>Payment</span>
+                </li>
+              </ol>
+            </nav>
+
+            <UPIPaymentForm
+              order={orderSuccess}
+              shop={cartShop || orderSuccess.shop || orderSuccess.shopId}
+              showCounterOption={true}
+              onSuccess={(finalOrder) => {
+                const updated = finalOrder || orderSuccess
+                setOrderSuccess(updated)
+                setPaymentDetails({
+                  method:
+                    updated.paymentMethod === 'upi'
+                      ? 'UPI Manual Verification'
+                      : 'Pay at Counter',
+                  amount: updated.totalAmount ?? totalAmount,
+                  utr: updated.paymentUtr,
+                })
+                setCheckoutStage('success')
+                if (refreshOrders) refreshOrders()
+              }}
+              onCancel={() => {
+                // Counter payment fallback
+                setPaymentDetails({
+                  method: 'Pay at Counter',
+                  amount: orderSuccess.totalAmount ?? totalAmount,
+                })
+                setCheckoutStage('success')
+              }}
+            />
+          </div>
         )}
 
-        {/* 3. Payment Failure / Cancelled View */}
-        {!loading && checkoutStage === 'failed' && (
-          <PaymentFailureView
-            amount={totalAmount}
-            reason={paymentFailureReason}
-            itemsCount={itemsCount}
-            onRetry={handleRetryPayment}
-            onBackToCart={handleBackToCart}
-            onBackToDashboard={onBack}
-          />
-        )}
-
-        {/* 4. Cart View & 5. Checkout View */}
+        {/* Step 1 & Step 2: Cart Review & Checkout Place View */}
         {!loading &&
           !error &&
           (checkoutStage === 'cart' || checkoutStage === 'checkout') &&
           cartItems.length > 0 && (
             <div className="space-y-6">
               {/* Checkout Progress Stepper */}
-              <nav aria-label="Checkout Progress" className="rounded-2xl border border-border bg-surface p-4 sm:p-5 shadow-xs">
+              <nav
+                aria-label="Checkout Progress"
+                className="rounded-2xl border border-border bg-surface p-4 sm:p-5 shadow-xs"
+              >
                 <ol className="flex items-center justify-between max-w-xl mx-auto text-xs sm:text-sm font-semibold">
                   <li className="flex items-center gap-2">
                     <button
@@ -487,9 +512,13 @@ function Cart({ onBack = () => {} }) {
                           : 'text-muted-text hover:text-text'
                       }`}
                     >
-                      <span className={`flex h-6 w-6 items-center justify-center rounded-full text-xs ${
-                        checkoutStage === 'cart' ? 'bg-primary text-white' : 'bg-primary/10 text-primary'
-                      }`}>
+                      <span
+                        className={`flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold ${
+                          checkoutStage === 'cart'
+                            ? 'bg-primary text-white'
+                            : 'bg-primary/10 text-primary'
+                        }`}
+                      >
                         1
                       </span>
                       <span>Review Cart</span>
@@ -499,24 +528,30 @@ function Cart({ onBack = () => {} }) {
                   <li className="text-border font-bold">——</li>
 
                   <li className="flex items-center gap-2">
-                    <div className={`flex items-center gap-2 ${
-                      checkoutStage === 'checkout' ? 'text-primary font-bold' : 'text-muted-text'
-                    }`}>
-                      <span className={`flex h-6 w-6 items-center justify-center rounded-full text-xs ${
-                        checkoutStage === 'checkout' ? 'bg-primary text-white' : 'border border-border text-muted-text'
-                      }`}>
+                    <div
+                      className={`flex items-center gap-2 ${
+                        checkoutStage === 'checkout'
+                          ? 'text-primary font-bold'
+                          : 'text-muted-text'
+                      }`}
+                    >
+                      <span
+                        className={`flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold ${
+                          checkoutStage === 'checkout'
+                            ? 'bg-primary text-white'
+                            : 'border border-border text-muted-text'
+                        }`}
+                      >
                         2
                       </span>
-                      <span>Review & Place</span>
+                      <span>Review &amp; Place</span>
                     </div>
                   </li>
 
                   <li className="text-border font-bold">——</li>
 
                   <li className="flex items-center gap-2 text-muted-text/60">
-                    <span className={`flex h-6 w-6 items-center justify-center rounded-full text-xs ${
-                      checkoutStage === 'payment' ? 'bg-primary text-white font-bold' : 'border border-border'
-                    }`}>
+                    <span className="flex h-6 w-6 items-center justify-center rounded-full text-xs border border-border">
                       3
                     </span>
                     <span className="hidden sm:inline">Payment</span>
@@ -528,7 +563,10 @@ function Cart({ onBack = () => {} }) {
               {checkoutStage === 'cart' && (
                 <div className="grid gap-8 lg:grid-cols-[1fr_380px]">
                   {/* Left Column: Cart Items List */}
-                  <section aria-labelledby="cart-items-heading" className="space-y-4">
+                  <section
+                    aria-labelledby="cart-items-heading"
+                    className="space-y-4"
+                  >
                     <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                       <div>
                         <h2
@@ -538,7 +576,8 @@ function Cart({ onBack = () => {} }) {
                           Selected Items
                         </h2>
                         <p className="text-xs text-muted-text">
-                          {itemsCount} {itemsCount === 1 ? 'item' : 'items'} in your cart
+                          {itemsCount} {itemsCount === 1 ? 'item' : 'items'} in
+                          your cart
                         </p>
                       </div>
 
@@ -546,7 +585,9 @@ function Cart({ onBack = () => {} }) {
                         type="button"
                         variant="outline"
                         size="sm"
-                        disabled={clearing || busyItemId !== null || submittingOrder}
+                        disabled={
+                          clearing || busyItemId !== null || submittingOrder
+                        }
                         onClick={clearCartItems}
                         className="text-danger border-danger/30 hover:bg-danger hover:text-white"
                       >
@@ -651,8 +692,8 @@ function Cart({ onBack = () => {} }) {
                             Special Instructions (Optional)
                           </h3>
                           <p className="text-xs text-muted-text">
-                            Dietary requests or pickup instructions for the campus
-                            outlet staff.
+                            Dietary requests or pickup instructions for the
+                            campus outlet staff.
                           </p>
                         </div>
                         <Input
@@ -696,14 +737,18 @@ function Cart({ onBack = () => {} }) {
                             <span className="text-muted-text">
                               Campus service fee
                             </span>
-                            <span className="font-medium text-success">FREE</span>
+                            <span className="font-medium text-success">
+                              FREE
+                            </span>
                           </div>
 
                           <div className="flex items-center justify-between">
                             <span className="text-muted-text">
-                              Packaging & pickup
+                              Packaging &amp; pickup
                             </span>
-                            <span className="font-medium text-success">FREE</span>
+                            <span className="font-medium text-success">
+                              FREE
+                            </span>
                           </div>
 
                           <div className="border-t border-border pt-4">
@@ -734,7 +779,7 @@ function Cart({ onBack = () => {} }) {
                           </Button>
 
                           <p className="text-center text-xs text-muted-text leading-relaxed">
-                            Review your items and pay securely with Razorpay in the next step.
+                            Review items and choose payment in the next step.
                           </p>
                         </div>
                       </Card>
@@ -743,94 +788,61 @@ function Cart({ onBack = () => {} }) {
                 </div>
               )}
 
-              {/* View 2: Dedicated Stage 9 Checkout & Payment UI */}
+              {/* View 2: Review & Place Order View */}
               {checkoutStage === 'checkout' && (
                 <div className="grid gap-8 lg:grid-cols-[1fr_400px]">
-                  {/* Left Column: Checkout Summary & Payment Method Selection */}
+                  {/* Left Column: Breakdown & Next Step Notice */}
                   <div className="space-y-6">
-                    {/* Item and Price Breakdown Summary */}
                     <CheckoutSummary
                       items={cartItems}
                       pricing={pricing}
                       orderNotes={orderNotes}
                     />
 
-                    {/* Payment Method Selector Card */}
+                    {/* Payment Step Info Notice */}
                     <Card>
-                      <div className="flex items-center justify-between border-b border-border pb-4">
+                      <div className="flex items-center justify-between border-b border-border pb-3">
                         <div>
-                          <h3 className="text-lg font-bold text-text">Payment Gateway</h3>
+                          <h3 className="text-base font-bold text-text">
+                            Payment Options
+                          </h3>
                           <p className="text-xs text-muted-text">
-                            Select your preferred online payment method
+                            Selected after placing your order in the next step
                           </p>
                         </div>
-                        <Badge variant="success" size="sm">
-                          Instant Authorization
+                        <Badge variant="default" size="sm">
+                          Step 3 of 3
                         </Badge>
                       </div>
 
-                      <div className="mt-4 space-y-3">
-                        {PAYMENT_METHODS.map((method) => {
-                          const isSelected = selectedPaymentMethod === method.id
-                          return (
-                            <button
-                              key={method.id}
-                              type="button"
-                              onClick={() => setSelectedPaymentMethod(method.id)}
-                              className={`cursor-pointer w-full flex items-center justify-between rounded-xl border p-4 text-left transition-all ${
-                                isSelected
-                                  ? 'border-primary bg-primary/5 ring-2 ring-primary/20 shadow-xs'
-                                  : 'border-border bg-surface hover:border-primary/40'
-                              }`}
-                            >
-                              <div className="flex items-center gap-3.5">
-                                <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-xl">
-                                  {method.icon}
-                                </span>
-                                <div>
-                                  <div className="flex items-center gap-2">
-                                    <span className="font-bold text-sm text-text">
-                                      {method.name}
-                                    </span>
-                                    {method.badge && (
-                                      <Badge variant="info" size="sm" className="text-[10px] py-0 px-1.5">
-                                        {method.badge}
-                                      </Badge>
-                                    )}
-                                  </div>
-                                  <p className="text-xs text-muted-text mt-0.5">
-                                    {method.description}
-                                  </p>
-                                </div>
-                              </div>
-
-                              <div className="shrink-0 pl-2">
-                                <span className={`flex h-5 w-5 items-center justify-center rounded-full border ${
-                                  isSelected
-                                    ? 'border-primary bg-primary text-white text-xs'
-                                    : 'border-border'
-                                }`}>
-                                  {isSelected && '✓'}
-                                </span>
-                              </div>
-                            </button>
-                          )
-                        })}
-                      </div>
-
-                      {/* Razorpay Trust Strip */}
-                      <div className="mt-5 rounded-xl border border-blue-100 bg-blue-50/70 p-3.5 text-xs text-blue-900 dark:border-blue-900/40 dark:bg-blue-950/20 dark:text-blue-200 flex items-center justify-between gap-3">
-                        <div className="flex items-center gap-2">
-                          <span className="text-base">🛡️</span>
-                          <span>Razorpay PCI-DSS Level 1 compliant gateway</span>
+                      <div className="mt-4 grid gap-3 sm:grid-cols-2 text-xs">
+                        <div className="rounded-xl border border-border bg-surface p-3.5 space-y-1">
+                          <div className="flex items-center gap-2">
+                            <span className="text-lg">📱</span>
+                            <span className="font-bold text-text">
+                              Instant UPI
+                            </span>
+                          </div>
+                          <p className="text-muted-text text-[11px] leading-relaxed">
+                            Scan the outlet QR code with any UPI app and enter the 12-digit UTR proof.
+                          </p>
                         </div>
-                        <span className="font-bold tracking-wider uppercase text-[10px]">
-                          256-Bit SSL
-                        </span>
+
+                        <div className="rounded-xl border border-border bg-surface p-3.5 space-y-1">
+                          <div className="flex items-center gap-2">
+                            <span className="text-lg">🏪</span>
+                            <span className="font-bold text-text">
+                              Pay at Counter
+                            </span>
+                          </div>
+                          <p className="text-muted-text text-[11px] leading-relaxed">
+                            Pay with cash, card, or UPI directly at the outlet counter upon pickup.
+                          </p>
+                        </div>
                       </div>
                     </Card>
 
-                    {/* Navigation: Back to Cart Button */}
+                    {/* Back to Cart Action */}
                     <div className="flex justify-start">
                       <Button
                         type="button"
@@ -844,12 +856,12 @@ function Cart({ onBack = () => {} }) {
                     </div>
                   </div>
 
-                  {/* Right Column: Checkout & Razorpay Payment Action Sidebar */}
-                  <aside aria-labelledby="payment-action-heading">
+                  {/* Right Column: Checkout Summary & Place Order Action */}
+                  <aside aria-labelledby="checkout-action-heading">
                     <div className="sticky top-6">
                       <Card>
                         <h2
-                          id="payment-action-heading"
+                          id="checkout-action-heading"
                           className="text-xl font-bold text-text"
                         >
                           Checkout Summary
@@ -871,8 +883,12 @@ function Cart({ onBack = () => {} }) {
                           </div>
 
                           <div className="flex items-center justify-between">
-                            <span className="text-muted-text">Pickup & Packaging</span>
-                            <span className="font-semibold text-success">FREE</span>
+                            <span className="text-muted-text">
+                              Pickup &amp; Packaging
+                            </span>
+                            <span className="font-semibold text-success">
+                              FREE
+                            </span>
                           </div>
 
                           <div className="border-t border-border pt-4">
@@ -890,17 +906,21 @@ function Cart({ onBack = () => {} }) {
                           </div>
                         </div>
 
-                        {/* Razorpay Payment Button */}
+                        {/* Place Order Button */}
                         <div className="mt-6">
-                          <RazorpayPaymentButton
-                            amount={totalAmount}
+                          <Button
+                            type="button"
+                            variant="primary"
+                            size="lg"
+                            fullWidth
+                            disabled={cartItems.length === 0 || submittingOrder}
                             loading={submittingOrder}
-                            disabled={cartItems.length === 0}
-                            onClick={handleInitiateRazorpay}
-                          />
+                            onClick={handlePlaceOrder}
+                          >
+                            {submittingOrder ? 'Placing Order...' : 'Place Order →'}
+                          </Button>
                         </div>
 
-                        {/* Help and Back to Cart Links */}
                         <div className="mt-4 pt-4 border-t border-border text-center space-y-2">
                           <button
                             type="button"
@@ -917,16 +937,6 @@ function Cart({ onBack = () => {} }) {
               )}
             </div>
           )}
-
-        {/* Razorpay Interactive Checkout Modal */}
-        <RazorpayModal
-          isOpen={isRazorpayModalOpen}
-          amount={totalAmount}
-          orderNotes={orderNotes}
-          onSuccess={handlePaymentSuccess}
-          onCancel={handlePaymentCancel}
-          onFailure={handlePaymentFailure}
-        />
       </div>
     </main>
   )

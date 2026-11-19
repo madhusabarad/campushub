@@ -17,16 +17,19 @@ export default function UPIPaymentForm({
   const [serverError, setServerError] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [copied, setCopied] = useState(false)
-  const [shopDetails, setShopDetails] = useState(shop || {})
+  const [fetchedShop, setFetchedShop] = useState(null)
 
-  // Fetch shop details if upiId is missing
+  const propCandidate =
+    shop ||
+    order?.shop ||
+    (typeof order?.shopId === 'object' ? order.shopId : null)
+
+  const shopId =
+    propCandidate?._id || order?.shopId?._id || order?.shopId
+
+  // Fetch shop details if upiId is missing from props
   useEffect(() => {
-    if (shop?.upiId) {
-      setShopDetails(shop)
-      return
-    }
-
-    const shopId = order?.shopId?._id || order?.shopId
+    if (propCandidate?.upiId) return
     if (!shopId) return
 
     let cancelled = false
@@ -35,42 +38,67 @@ export default function UPIPaymentForm({
       .then((data) => {
         if (!cancelled && data.success && Array.isArray(data.data)) {
           const found = data.data.find((s) => String(s._id) === String(shopId))
-          if (found) {
-            setShopDetails(found)
-          }
+          setFetchedShop(found || {})
+        } else if (!cancelled) {
+          setFetchedShop({})
         }
       })
-      .catch(() => {})
+      .catch((err) => {
+        console.error('Error fetching shop UPI ID:', err)
+        if (!cancelled) setFetchedShop({})
+      })
 
     return () => {
       cancelled = true
     }
-  }, [shop, order?.shopId])
+  }, [propCandidate?.upiId, shopId])
 
-  const effectiveShop = shopDetails || order?.shopId || {}
-  const upiId = effectiveShop.upiId || 'campushub@upi'
-  const shopName = effectiveShop.name || 'Campus Outlet'
+  const effectiveShop =
+    (propCandidate?.upiId ? propCandidate : null) ||
+    (fetchedShop?.upiId ? fetchedShop : null) ||
+    propCandidate ||
+    fetchedShop ||
+    {}
+
+  const loadingShop = !effectiveShop?.upiId && Boolean(shopId) && fetchedShop === null
+
+  const upiId = effectiveShop.upiId || ''
+  const shopName =
+    effectiveShop.name ||
+    order?.shopId?.name ||
+    order?.shop?.name ||
+    'Campus Outlet'
   const amount = Number(order.totalAmount ?? order.total ?? 0)
-  const orderId = order._id || order.id || ''
+  const orderId = String(order._id || order.id || '')
   const orderCode = orderId ? orderId.slice(-6).toUpperCase() : ''
   const displayCode = orderCode ? `#${orderCode}` : ''
 
   // UPI deep link
-  const upiLink = `upi://pay?pa=${upiId}&pn=${encodeURIComponent(shopName)}&am=${amount}&cu=INR&tn=${encodeURIComponent(`CampusHub ${orderCode}`.trim())}`
+  const tnValue = orderCode ? `CampusHub ${orderCode}` : 'CampusHub'
+  const upiLink = upiId
+    ? `upi://pay?pa=${upiId}&pn=${encodeURIComponent(shopName)}&am=${amount}&cu=INR&tn=${encodeURIComponent(tnValue)}`
+    : ''
 
   const handleCopyUpi = async () => {
+    if (!upiId) return
     try {
       await navigator.clipboard.writeText(upiId)
       setCopied(true)
       setTimeout(() => setCopied(false), 2000)
     } catch {
-      // fallback if clipboard API unavailable
+      // Fallback
     }
   }
 
   const handleSubmitProof = async (e) => {
     e.preventDefault()
     if (utr.trim().length !== 12 || !screenshot || isSubmitting) return
+
+    const targetId = order._id || order.id
+    if (!targetId) {
+      setServerError('Missing order ID. Please try again.')
+      return
+    }
 
     setIsSubmitting(true)
     setServerError('')
@@ -81,7 +109,6 @@ export default function UPIPaymentForm({
       formData.append('screenshot', screenshot)
 
       const token = localStorage.getItem('campushub_token')
-      const targetId = order._id || order.id
 
       const res = await fetch(`/api/orders/${targetId}/payment-proof`, {
         method: 'POST',
@@ -106,11 +133,12 @@ export default function UPIPaymentForm({
   }
 
   const handlePayAtCounter = () => {
-    // Counter payment: current flow, no extra steps, redirect to My Orders
+    // Counter payment: existing flow, no proof upload needed
     onSuccess(order)
   }
 
-  const isSubmitDisabled = utr.trim().length !== 12 || !screenshot || isSubmitting
+  const isSubmitDisabled =
+    utr.trim().length !== 12 || !screenshot || isSubmitting
 
   return (
     <Card className={`space-y-6 ${className}`.trim()}>
@@ -131,7 +159,7 @@ export default function UPIPaymentForm({
           </div>
         </div>
 
-        {/* Rejection Alert if re-uploading */}
+        {/* Rejection Alert if re-uploading proof */}
         {order.paymentRejectReason && (
           <div className="mt-3 rounded-xl border border-danger/30 bg-danger/10 p-3 text-xs text-danger">
             <div className="font-bold">Previous proof was rejected:</div>
@@ -143,7 +171,7 @@ export default function UPIPaymentForm({
         )}
       </div>
 
-      {/* Two payment options if in checkout mode */}
+      {/* Two payment choices after placing order in Cart */}
       {showCounterOption && (
         <div className="grid grid-cols-2 gap-3" role="radiogroup" aria-label="Payment method">
           <button
@@ -201,7 +229,7 @@ export default function UPIPaymentForm({
           <div>
             <h3 className="text-base font-bold text-text">Pay Directly at Outlet Counter</h3>
             <p className="mt-1 text-xs text-muted-text max-w-sm mx-auto">
-              Your order is placed. You can pay ₹{amount} using cash, card, or UPI directly when picking up your food at {shopName}.
+              Your order is placed! You can pay ₹{amount} using cash, card, or UPI directly when picking up your food at {shopName}.
             </p>
           </div>
           <div className="pt-2">
@@ -221,70 +249,101 @@ export default function UPIPaymentForm({
       {/* Mode B: Pay via UPI */}
       {(!showCounterOption || selectedMethod === 'upi') && (
         <form onSubmit={handleSubmitProof} className="space-y-5">
-          {/* QR Code and Payment Details */}
-          <div className="grid gap-4 sm:grid-cols-2 sm:items-center">
-            {/* QR Code Display */}
-            <div className="flex flex-col items-center justify-center rounded-2xl border border-border bg-white p-4 shadow-xs">
-              <QRCodeSVG
-                value={upiLink}
-                size={170}
-                level="M"
-                includeMargin={true}
-              />
-              <p className="mt-2 text-center text-[11px] font-medium text-muted-text">
-                Scan with any UPI app
+          {/* Loading shop state */}
+          {loadingShop && !upiId && (
+            <div className="rounded-xl border border-border bg-surface p-4 text-center">
+              <div className="inline-block h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent mb-2" />
+              <p className="text-xs text-muted-text">Fetching shop payment details...</p>
+            </div>
+          )}
+
+          {/* Missing UPI ID warning */}
+          {!loadingShop && !upiId && (
+            <div className="rounded-xl border border-warning/30 bg-warning/10 p-4 text-center space-y-2">
+              <div className="text-xl">⚠️</div>
+              <h4 className="text-sm font-bold text-text">UPI ID Not Configured</h4>
+              <p className="text-xs text-muted-text max-w-sm mx-auto">
+                {shopName} has not set up a UPI ID yet. Please choose &quot;Pay at Counter&quot; to complete payment at pickup.
               </p>
+              {showCounterOption && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setSelectedMethod('counter')}
+                >
+                  Switch to Pay at Counter
+                </Button>
+              )}
             </div>
+          )}
 
-            {/* Payment Info & App Link */}
-            <div className="space-y-3">
-              {/* UPI ID */}
-              <div className="rounded-xl border border-border bg-background/60 p-3">
-                <span className="block text-[10px] font-bold uppercase tracking-wider text-muted-text">
-                  Shop UPI ID
-                </span>
-                <div className="mt-1 flex items-center justify-between gap-2">
-                  <span className="font-mono text-sm font-bold text-text break-all select-all">
-                    {upiId}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={handleCopyUpi}
-                    className="shrink-0 cursor-pointer rounded-lg border border-border bg-surface px-2.5 py-1 text-xs font-semibold text-primary hover:bg-primary hover:text-white transition-colors"
-                  >
-                    {copied ? 'Copied! ✓' : 'Copy'}
-                  </button>
-                </div>
+          {/* QR Code and Payment Details */}
+          {upiId && (
+            <div className="grid gap-4 sm:grid-cols-2 sm:items-center">
+              {/* QR Code Display */}
+              <div className="flex flex-col items-center justify-center rounded-2xl border border-border bg-white p-4 shadow-xs">
+                <QRCodeSVG
+                  value={upiLink}
+                  size={170}
+                  level="M"
+                  includeMargin={true}
+                />
+                <p className="mt-2 text-center text-[11px] font-medium text-muted-text">
+                  Scan with any UPI app
+                </p>
               </div>
 
-              {/* Amount & Order Code */}
-              <div className="grid grid-cols-2 gap-2 text-xs">
-                <div className="rounded-xl border border-border bg-background/60 p-2.5">
+              {/* Payment Info & App Link */}
+              <div className="space-y-3">
+                {/* UPI ID */}
+                <div className="rounded-xl border border-border bg-background/60 p-3">
                   <span className="block text-[10px] font-bold uppercase tracking-wider text-muted-text">
-                    Amount
+                    Shop UPI ID
                   </span>
-                  <span className="text-base font-bold text-primary">₹{amount}</span>
+                  <div className="mt-1 flex items-center justify-between gap-2">
+                    <span className="font-mono text-sm font-bold text-text break-all select-all">
+                      {upiId}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={handleCopyUpi}
+                      className="shrink-0 cursor-pointer rounded-lg border border-border bg-surface px-2.5 py-1 text-xs font-semibold text-primary hover:bg-primary hover:text-white transition-colors"
+                    >
+                      {copied ? 'Copied! ✓' : 'Copy'}
+                    </button>
+                  </div>
                 </div>
-                <div className="rounded-xl border border-border bg-background/60 p-2.5">
-                  <span className="block text-[10px] font-bold uppercase tracking-wider text-muted-text">
-                    Order Code
-                  </span>
-                  <span className="font-mono text-base font-bold text-text">
-                    {displayCode || '—'}
-                  </span>
-                </div>
-              </div>
 
-              {/* Open UPI App Button */}
-              <a
-                href={upiLink}
-                className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-primary bg-primary/5 px-4 py-2.5 text-xs font-bold text-primary hover:bg-primary hover:text-white transition-colors"
-              >
-                <span>📱</span>
-                <span>Open UPI App</span>
-              </a>
+                {/* Amount & Order Code */}
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  <div className="rounded-xl border border-border bg-background/60 p-2.5">
+                    <span className="block text-[10px] font-bold uppercase tracking-wider text-muted-text">
+                      Amount
+                    </span>
+                    <span className="text-base font-bold text-primary">₹{amount}</span>
+                  </div>
+                  <div className="rounded-xl border border-border bg-background/60 p-2.5">
+                    <span className="block text-[10px] font-bold uppercase tracking-wider text-muted-text">
+                      Order Code
+                    </span>
+                    <span className="font-mono text-base font-bold text-text">
+                      {displayCode || '—'}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Open UPI App Button */}
+                <a
+                  href={upiLink}
+                  className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-primary bg-primary/5 px-4 py-2.5 text-xs font-bold text-primary hover:bg-primary hover:text-white transition-colors"
+                >
+                  <span>📱</span>
+                  <span>Open UPI App</span>
+                </a>
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Form Inputs: 12-digit UTR & Screenshot */}
           <div className="space-y-3.5 border-t border-border pt-4">
@@ -392,4 +451,3 @@ export default function UPIPaymentForm({
     </Card>
   )
 }
-
