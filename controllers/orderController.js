@@ -1,4 +1,5 @@
 
+const fs = require('fs');
 const mongoose = require('mongoose');
 
 const Shop = require('../models/Shop');
@@ -694,6 +695,188 @@ exports.getIncomingOrders = async (req, res) => {
     return res.status(500).json({
       success: false,
       message: 'Server error while retrieving incoming orders.',
+    });
+  }
+};
+
+// POST /api/orders/:id/payment-proof
+// Students can upload manual UPI payment proof for their order.
+exports.submitPaymentProof = async (req, res) => {
+  const cleanupFile = async () => {
+    if (req.file?.path) {
+      try {
+        await fs.promises.unlink(req.file.path);
+      } catch (err) {}
+    }
+  };
+
+  try {
+    if (req.user.role !== 'student') {
+      await cleanupFile();
+      return res.status(403).json({
+        success: false,
+        message: 'Only students can access this endpoint.',
+      });
+    }
+
+    if (!mongoose.isValidObjectId(req.params.id)) {
+      await cleanupFile();
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid order ID.',
+      });
+    }
+
+    const order = await Order.findById(req.params.id);
+
+    if (!order) {
+      await cleanupFile();
+      return res.status(404).json({
+        success: false,
+        message: 'Order not found.',
+      });
+    }
+
+    if (order.userId.toString() !== req.user.id) {
+      await cleanupFile();
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied.',
+      });
+    }
+
+    if (!req.file) {
+      return res.status(400).json({
+        success: false,
+        message: 'Payment screenshot is required.',
+      });
+    }
+
+    const utr = req.body.utr !== undefined ? String(req.body.utr).trim() : '';
+
+    if (!/^\d{12}$/.test(utr)) {
+      await cleanupFile();
+      return res.status(400).json({
+        success: false,
+        message: 'UTR must be exactly 12 digits.',
+      });
+    }
+
+    const existingOrder = await Order.findOne({ paymentUtr: utr });
+
+    if (existingOrder) {
+      await cleanupFile();
+      return res.status(409).json({
+        success: false,
+        message: 'This UTR was already used',
+      });
+    }
+
+    order.paymentMethod = 'upi';
+    order.paymentStatus = 'pending_verification';
+    order.paymentUtr = utr;
+    order.paymentProof = `/uploads/payments/${req.file.filename}`;
+    order.paymentRejectReason = undefined;
+
+    try {
+      await order.save();
+    } catch (saveErr) {
+      await cleanupFile();
+      if (saveErr.code === 11000) {
+        return res.status(409).json({
+          success: false,
+          message: 'This UTR was already used',
+        });
+      }
+      throw saveErr;
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: 'Payment proof submitted successfully.',
+      data: order,
+    });
+  } catch (err) {
+    await cleanupFile();
+    console.error('submitPaymentProof error:', err);
+
+    return res.status(500).json({
+      success: false,
+      message: 'Server error while submitting payment proof.',
+    });
+  }
+};
+
+// PATCH /api/orders/:id/payment
+// Shopkeeper of that order's shop can confirm or reject payment.
+exports.updateOrderPayment = async (req, res) => {
+  try {
+    if (!mongoose.isValidObjectId(req.params.id)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid order ID.',
+      });
+    }
+
+    const { action, reason } = req.body;
+
+    if (!action || !['confirm', 'reject'].includes(action)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Action must be either "confirm" or "reject".',
+      });
+    }
+
+    const order = await Order.findById(req.params.id);
+
+    if (!order) {
+      return res.status(404).json({
+        success: false,
+        message: 'Order not found.',
+      });
+    }
+
+    const shop = await Shop.findById(order.shopId);
+
+    if (!shop) {
+      return res.status(404).json({
+        success: false,
+        message: 'The shop associated with this order was not found.',
+      });
+    }
+
+    if (
+      !shop.shopkeeperId ||
+      shop.shopkeeperId.toString() !== req.user.id
+    ) {
+      return res.status(403).json({
+        success: false,
+        message: 'You can only update orders for your assigned shop.',
+      });
+    }
+
+    if (action === 'confirm') {
+      order.paymentStatus = 'paid';
+      order.paymentRejectReason = undefined;
+    } else if (action === 'reject') {
+      order.paymentStatus = 'rejected';
+      order.paymentRejectReason = typeof reason === 'string' ? reason.trim() : (reason || '');
+      order.paymentUtr = undefined;
+    }
+
+    await order.save();
+
+    return res.status(200).json({
+      success: true,
+      message: `Payment ${action === 'confirm' ? 'confirmed' : 'rejected'} successfully.`,
+      data: order,
+    });
+  } catch (err) {
+    console.error('updateOrderPayment error:', err);
+
+    return res.status(500).json({
+      success: false,
+      message: 'Server error while updating payment status.',
     });
   }
 };

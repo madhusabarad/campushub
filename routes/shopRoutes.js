@@ -8,6 +8,7 @@ const {
   getShops,
   getShopMenu,
   updateShopStatus,
+  updateShopUpi,
 } = require('../controllers/shopController');
 
 // GET /api/shops - list all shops
@@ -15,6 +16,9 @@ router.get('/', getShops);
 
 // PATCH /api/shops/manage/status - open or close assigned shop
 router.patch('/manage/status', protect, shopkeeperMiddleware, updateShopStatus);
+
+// PATCH /api/shops/:id/upi - set UPI ID for shop
+router.patch('/:id/upi', protect, shopkeeperMiddleware, updateShopUpi);
 
 // GET /api/shops/:id/menu - list menu items for a shop
 router.get('/:id/menu', getShopMenu);

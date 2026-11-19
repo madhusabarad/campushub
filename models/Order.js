@@ -60,6 +60,36 @@ const orderSchema = new mongoose.Schema(
       },
       default: 'placed',
     },
+    paymentMethod: {
+      type: String,
+      enum: {
+        values: ['upi', 'counter'],
+        message: '{VALUE} is not a valid payment method',
+      },
+      default: 'counter',
+    },
+    paymentStatus: {
+      type: String,
+      enum: {
+        values: ['unpaid', 'pending_verification', 'paid', 'rejected'],
+        message: '{VALUE} is not a valid payment status',
+      },
+      default: 'unpaid',
+    },
+    paymentUtr: {
+      type: String,
+      unique: true,
+      sparse: true,
+      trim: true,
+    },
+    paymentProof: {
+      type: String,
+      trim: true,
+    },
+    paymentRejectReason: {
+      type: String,
+      trim: true,
+    },
     createdAt: {
       type: Date,
       default: Date.now,

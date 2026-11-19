@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react'
 import Dashboard from './Dashboard'
 import Menu from './Menu'
 import Cart from './Cart'
+import AppLayout from './components/AppLayout'
+import { OrderNotificationProvider } from './context/OrderNotificationContext'
 import './App.css'
 
 function LoginPage({ onLogin }) {
@@ -305,7 +307,7 @@ function App() {
 
       if (state.page === 'menu') {
         setCurrentPage('menu')
-        setSelectedShopId(state.shopId)
+        setSelectedShopId(state.shopId || '1')
         return
       }
 
@@ -385,25 +387,40 @@ function App() {
     return <LoginPage onLogin={handleLogin} />
   }
 
-  if (currentPage === 'menu' && selectedShopId) {
-    return (
-      <Menu
-        shopId={selectedShopId}
-        onBack={goToDashboard}
-      />
-    )
-  }
-
-  if (currentPage === 'cart') {
-    return <Cart onBack={goToDashboard} />
+  const handleNavigate = (page) => {
+    if (page === 'dashboard') {
+      goToDashboard()
+    } else if (page === 'menu') {
+      openMenu(selectedShopId || '1')
+    } else if (page === 'cart') {
+      openCart()
+    }
   }
 
   return (
-    <Dashboard
-      onOpenMenu={openMenu}
-      onOpenCart={openCart}
-      onLogout={handleLogout}
-    />
+    <OrderNotificationProvider>
+      <AppLayout
+        currentPage={currentPage}
+        onNavigate={handleNavigate}
+        onLogout={handleLogout}
+        onOpenCart={openCart}
+      >
+        {currentPage === 'menu' ? (
+          <Menu
+            shopId={selectedShopId || '1'}
+            onBack={goToDashboard}
+          />
+        ) : currentPage === 'cart' ? (
+          <Cart onBack={goToDashboard} />
+        ) : (
+          <Dashboard
+            onOpenMenu={openMenu}
+            onOpenCart={openCart}
+            onLogout={handleLogout}
+          />
+        )}
+      </AppLayout>
+    </OrderNotificationProvider>
   )
 }
 

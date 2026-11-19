@@ -26,6 +26,10 @@ const shopSchema = new mongoose.Schema(
       ref: 'User',
       default: null,
     },
+    upiId: {
+      type: String,
+      trim: true,
+    },
   },
   { timestamps: true }
 );

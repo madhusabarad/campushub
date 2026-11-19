@@ -18,3 +18,4 @@ Thumbs.db
 
 # Private uploaded documents
 private_uploads/
+node_modules/
