@@ -4,6 +4,7 @@ import Button from './components/Button'
 import Badge from './components/Badge'
 import Input from './components/Input'
 import CheckoutSummary from './components/CheckoutSummary'
+import UPIPaymentForm from './components/UPIPaymentForm'
 import RazorpayPaymentButton from './components/RazorpayPaymentButton'
 import RazorpayModal from './components/RazorpayModal'
 import PaymentProcessingView from './components/PaymentProcessingView'
@@ -193,6 +194,37 @@ function Cart({ onBack = () => {} }) {
   )
 
   const { itemsCount, totalAmount } = pricing
+
+  // Places order from finalized cart, then transitions to payment step
+  const handlePlaceOrder = async () => {
+    setActionError('')
+    setSubmittingOrder(true)
+
+    try {
+      const result = await apiRequest('/api/orders', {
+        method: 'POST',
+        body: JSON.stringify({
+          notes: orderNotes.trim() || undefined,
+        }),
+      })
+
+      const placedOrder = result.data || {}
+      setOrderSuccess(placedOrder)
+      setCartItems([])
+      setCheckoutStage('payment')
+
+      if (notifyOrderStatus && placedOrder._id) {
+        notifyOrderStatus(placedOrder)
+      }
+      if (refreshOrders) {
+        refreshOrders()
+      }
+    } catch (err) {
+      setActionError(err.message || 'Failed to place order. Please try again.')
+    } finally {
+      setSubmittingOrder(false)
+    }
+  }
 
   // Initiates Razorpay payment UI
   const handleInitiateRazorpay = () => {
@@ -475,17 +507,19 @@ function Cart({ onBack = () => {} }) {
                       }`}>
                         2
                       </span>
-                      <span>Payment & Checkout</span>
+                      <span>Review & Place</span>
                     </div>
                   </li>
 
                   <li className="text-border font-bold">——</li>
 
                   <li className="flex items-center gap-2 text-muted-text/60">
-                    <span className="flex h-6 w-6 items-center justify-center rounded-full border border-border text-xs">
+                    <span className={`flex h-6 w-6 items-center justify-center rounded-full text-xs ${
+                      checkoutStage === 'payment' ? 'bg-primary text-white font-bold' : 'border border-border'
+                    }`}>
                       3
                     </span>
-                    <span className="hidden sm:inline">Confirmation</span>
+                    <span className="hidden sm:inline">Payment</span>
                   </li>
                 </ol>
               </nav>

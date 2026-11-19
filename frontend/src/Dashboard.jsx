@@ -5,6 +5,7 @@ import Badge from './components/Badge'
 import OrderStatusBadge from './components/OrderStatusBadge'
 import OrderStatusTimeline from './components/OrderStatusTimeline'
 import QRPickupCard from './components/QRPickupCard'
+import UPIPaymentModal from './components/UPIPaymentModal'
 import { useOrderNotifications } from './context/OrderNotificationContext'
 
 function Dashboard({
@@ -16,6 +17,7 @@ function Dashboard({
   const [loadingLocalOrders, setLoadingLocalOrders] = useState(true)
   const [orderFilter, setOrderFilter] = useState('all') // 'all' | 'active' | 'completed'
   const [selectedQrOrder, setSelectedQrOrder] = useState(null)
+  const [paymentModalOrder, setPaymentModalOrder] = useState(null)
 
   let contextOrders = null
   let contextLoading = null
@@ -659,10 +661,31 @@ function Dashboard({
                       </span>
                     }
                     headerAction={
-                      <OrderStatusBadge
-                        status={order.status || 'placed'}
-                        size="sm"
-                      />
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        {order.paymentStatus === 'paid' && (
+                          <Badge variant="success" size="sm">
+                            Paid ✓
+                          </Badge>
+                        )}
+                        {order.paymentStatus === 'rejected' && (
+                          <Badge
+                            variant="danger"
+                            size="sm"
+                            title={order.paymentRejectReason ? `Rejected: ${order.paymentRejectReason}` : 'Rejected'}
+                          >
+                            Rejected: {order.paymentRejectReason || 'Payment rejected'}
+                          </Badge>
+                        )}
+                        {(order.paymentStatus === 'pending_verification' || order.paymentStatus === 'unpaid' || !order.paymentStatus) && (
+                          <Badge variant="warning" size="sm">
+                            Payment pending
+                          </Badge>
+                        )}
+                        <OrderStatusBadge
+                          status={order.status || 'placed'}
+                          size="sm"
+                        />
+                      </div>
                     }
                     className={`flex flex-col justify-between transition-all duration-200 ${
                       isSelected
@@ -671,6 +694,26 @@ function Dashboard({
                     }`}
                   >
                     <div className="space-y-4">
+                      {/* Payment Rejection Alert & Re-upload action */}
+                      {order.paymentStatus === 'rejected' && (
+                        <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-danger/30 bg-danger/10 p-3 text-xs text-danger">
+                          <div className="flex-1">
+                            <span className="font-bold">Payment Rejected: </span>
+                            <span>{order.paymentRejectReason || 'Verification failed. Please re-upload proof.'}</span>
+                          </div>
+                          <Button
+                            type="button"
+                            variant="danger"
+                            size="sm"
+                            onClick={() => setPaymentModalOrder(order)}
+                            className="gap-1.5"
+                          >
+                            <span>🔄</span>
+                            <span>Re-upload proof</span>
+                          </Button>
+                        </div>
+                      )}
+
                       {/* 5-Step Order Status Timeline */}
                       <OrderStatusTimeline
                         status={order.status || 'placed'}
@@ -711,7 +754,7 @@ function Dashboard({
                         )}
                       </div>
 
-                      {/* Order footer: Total & Pickup QR action */}
+                      {/* Order footer: Total & Actions */}
                       <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border pt-3">
                         <div className="flex flex-col">
                           <span className="text-xs font-semibold uppercase tracking-wider text-muted-text">
@@ -722,20 +765,35 @@ function Dashboard({
                           </span>
                         </div>
 
-                        <Button
-                          type="button"
-                          variant={order.status === 'ready' ? 'primary' : 'outline'}
-                          size="sm"
-                          onClick={() => setSelectedQrOrder(order)}
-                          className="gap-1.5"
-                        >
-                          <span>🎟️</span>
-                          <span>
-                            {order.status === 'ready'
-                              ? 'Show Pickup Pass (Ready)'
-                              : 'Pickup QR'}
-                          </span>
-                        </Button>
+                        <div className="flex flex-wrap items-center gap-2">
+                          {order.paymentStatus === 'rejected' && (
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setPaymentModalOrder(order)}
+                              className="border-danger/30 text-danger hover:bg-danger hover:text-white gap-1.5"
+                            >
+                              <span>🔄</span>
+                              <span>Re-upload proof</span>
+                            </Button>
+                          )}
+
+                          <Button
+                            type="button"
+                            variant={order.status === 'ready' ? 'primary' : 'outline'}
+                            size="sm"
+                            onClick={() => setSelectedQrOrder(order)}
+                            className="gap-1.5"
+                          >
+                            <span>🎟️</span>
+                            <span>
+                              {order.status === 'ready'
+                                ? 'Show Pickup Pass (Ready)'
+                                : 'Pickup QR'}
+                            </span>
+                          </Button>
+                        </div>
                       </div>
                     </div>
                   </Card>
@@ -764,6 +822,20 @@ function Dashboard({
               />
             </div>
           </div>
+        )}
+
+        {/* UPI Payment / Re-upload Proof Modal Dialog */}
+        {paymentModalOrder && (
+          <UPIPaymentModal
+            order={paymentModalOrder}
+            isOpen={Boolean(paymentModalOrder)}
+            showCounterOption={false}
+            onClose={() => setPaymentModalOrder(null)}
+            onSuccess={() => {
+              setPaymentModalOrder(null)
+              if (refreshOrders) refreshOrders()
+            }}
+          />
         )}
       </div>
     </main>
