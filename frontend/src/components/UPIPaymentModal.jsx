@@ -10,6 +10,8 @@ export default function UPIPaymentModal({
 }) {
   if (!isOpen || !order) return null
 
+  const resolvedShop = shop || order.shop || order.shopId
+
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 overflow-y-auto animate-fade-in"
@@ -24,7 +26,7 @@ export default function UPIPaymentModal({
       >
         <UPIPaymentForm
           order={order}
-          shop={shop}
+          shop={resolvedShop}
           showCounterOption={showCounterOption}
           onSuccess={onSuccess}
           onCancel={onClose}

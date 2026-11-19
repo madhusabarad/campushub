@@ -79,15 +79,18 @@ function Dashboard({
 
             const rawList = Array.isArray(ordersResult.data) ? ordersResult.data : []
             const orderList = rawList.map((order) => {
-              const shopId = order.shopId?._id || order.shopId
-              const fullShop = shopId ? shopsMap.get(String(shopId)) : null
+              const rawShopId = order.shopId?._id || order.shopId
+              const fullShop = rawShopId ? shopsMap.get(String(rawShopId)) : null
+              const shopObj =
+                fullShop ||
+                (typeof order.shopId === 'object' && order.shopId !== null
+                  ? order.shopId
+                  : { _id: rawShopId })
               return {
                 ...order,
-                shop: fullShop || order.shopId,
-                shopId: {
-                  ...(typeof order.shopId === 'object' ? order.shopId : {}),
-                  ...(fullShop || {}),
-                },
+                total: order.total ?? order.totalAmount,
+                shop: shopObj,
+                shopId: shopObj,
               }
             })
             setLocalOrders(orderList)

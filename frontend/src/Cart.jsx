@@ -75,7 +75,8 @@ function Cart({ onBack = () => {} }) {
     const data = result.data || {}
 
     const rawItems = (data.items || []).filter((item) => item.menuItemId)
-    const firstShopId = rawItems[0]?.menuItemId?.shopId
+    const firstShopId =
+      rawItems[0]?.menuItemId?.shopId?._id || rawItems[0]?.menuItemId?.shopId
 
     let resolvedShop = null
     if (firstShopId) {
@@ -226,7 +227,10 @@ function Cart({ onBack = () => {} }) {
       // Ensure shop object with upiId is attached to order data
       let finalShop = cartShop
       const targetShopId =
-        placedOrder.shopId?._id || placedOrder.shopId || cartItems[0]?.shopId
+        placedOrder.shopId?._id ||
+        placedOrder.shopId ||
+        cartItems[0]?.shopId?._id ||
+        cartItems[0]?.shopId
 
       if ((!finalShop || !finalShop.upiId) && targetShopId) {
         try {
@@ -246,13 +250,15 @@ function Cart({ onBack = () => {} }) {
         }
       }
 
-      if (finalShop) {
-        placedOrder.shop = finalShop
-        placedOrder.shopId = {
-          ...(typeof placedOrder.shopId === 'object' ? placedOrder.shopId : {}),
-          ...finalShop,
-        }
-      }
+      const shopObj =
+        finalShop ||
+        (typeof placedOrder.shopId === 'object' && placedOrder.shopId !== null
+          ? placedOrder.shopId
+          : { _id: targetShopId })
+
+      placedOrder.shop = shopObj
+      placedOrder.shopId = shopObj
+      placedOrder.total = placedOrder.total ?? placedOrder.totalAmount ?? totalAmount
 
       setOrderSuccess(placedOrder)
       setCompletedItems([...cartItems])
