@@ -1,4 +1,3 @@
-
 import { useCallback, useEffect, useMemo, useState } from 'react'
 
 const getHeaders = () => {
@@ -23,7 +22,7 @@ async function apiRequest(url, options = {}) {
 
     if (!response.ok || result.success === false) {
         if (response.status === 401 || response.status === 403) {
-            throw new Error('Your session may have expired. Please log in again.')
+            throw new Error(result.message || 'Your session may have expired. Please log in again.')
         }
 
         throw new Error(result.message || 'Something went wrong. Please try again.')
@@ -39,6 +38,8 @@ function Cart({ onBack }) {
     const [actionError, setActionError] = useState('')
     const [busyItemId, setBusyItemId] = useState(null)
     const [clearing, setClearing] = useState(false)
+    const [placingOrder, setPlacingOrder] = useState(false)
+    const [placedOrder, setPlacedOrder] = useState(null)
 
     const loadCart = useCallback(async () => {
         const result = await apiRequest('/api/cart')
@@ -148,6 +149,34 @@ function Cart({ onBack }) {
         }
     }
 
+    const handlePlaceOrder = async () => {
+        if (
+            placingOrder ||
+            clearing ||
+            busyItemId !== null ||
+            cartItems.length === 0
+        ) {
+            return
+        }
+
+        setPlacingOrder(true)
+        setActionError('')
+
+        try {
+            const result = await apiRequest('/api/orders', {
+                method: 'POST',
+                body: JSON.stringify({}),
+            })
+
+            setCartItems([])
+            setPlacedOrder(result.data || null)
+        } catch (err) {
+            setActionError(err.message || 'Unable to place your order. Please try again.')
+        } finally {
+            setPlacingOrder(false)
+        }
+    }
+
     const totalItems = useMemo(
         () => cartItems.reduce((total, item) => total + item.quantity, 0),
         [cartItems],
@@ -231,7 +260,68 @@ function Cart({ onBack }) {
                     </div>
                 )}
 
-                {!loading && !error && cartItems.length === 0 && (
+                {actionError && (
+                    <div
+                        role="alert"
+                        className="mb-6 rounded-xl border border-red-200 bg-red-50 px-5 py-3 text-sm text-red-700"
+                    >
+                        {actionError}
+                    </div>
+                )}
+
+                {!loading && !error && placedOrder && (
+                    <div className="rounded-2xl border border-[#eadfd2] bg-white p-8 text-center shadow-sm">
+                        <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-[#f1e3d5] text-3xl">
+                            🎉
+                        </div>
+                        <h3 className="text-3xl font-bold text-[#3f2720]">Order Placed Successfully!</h3>
+                        <p className="mx-auto mt-2 max-w-lg text-gray-600">
+                            Your order has been received by the shop. Please show your order token at the counter for pickup.
+                        </p>
+
+                        <div className="mx-auto my-6 inline-block rounded-2xl border-2 border-dashed border-[#7b1e1e] bg-[#fffaf4] px-8 py-5">
+                            <p className="text-xs font-semibold uppercase tracking-widest text-[#8b5e3c]">
+                                Your Order Token
+                            </p>
+                            <p className="mt-1 font-mono text-3xl font-extrabold tracking-wider text-[#7b1e1e]">
+                                {placedOrder.orderToken}
+                            </p>
+                        </div>
+
+                        <div className="mx-auto max-w-sm rounded-xl bg-[#f7f0e6] p-4 text-left text-sm text-gray-700">
+                            <div className="flex justify-between py-1">
+                                <span className="text-gray-500">Status</span>
+                                <span className="font-semibold capitalize text-amber-700">
+                                    {placedOrder.status || 'placed'}
+                                </span>
+                            </div>
+                            <div className="flex justify-between py-1">
+                                <span className="text-gray-500">Total Amount</span>
+                                <span className="font-bold text-[#7b1e1e]">
+                                    ₹{placedOrder.totalAmount}
+                                </span>
+                            </div>
+                            <div className="flex justify-between py-1">
+                                <span className="text-gray-500">Payment</span>
+                                <span className="font-medium">
+                                    {placedOrder.paymentMethod === 'razorpay' ? 'Razorpay' : 'Pay at counter'} ({placedOrder.paymentStatus || 'pending'})
+                                </span>
+                            </div>
+                        </div>
+
+                        <div className="mt-8 flex justify-center gap-4">
+                            <button
+                                type="button"
+                                onClick={onBack}
+                                className="rounded-xl bg-[#7b1e1e] px-8 py-3.5 font-semibold text-white transition hover:bg-[#641818]"
+                            >
+                                Back to Dashboard
+                            </button>
+                        </div>
+                    </div>
+                )}
+
+                {!loading && !error && !placedOrder && cartItems.length === 0 && (
                     <div className="rounded-2xl border border-[#eadfd2] bg-white px-6 py-16 text-center shadow-sm">
                         <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-full bg-[#f1e3d5] text-3xl">
                             🛒
@@ -250,16 +340,7 @@ function Cart({ onBack }) {
                     </div>
                 )}
 
-                {actionError && (
-                    <div
-                        role="alert"
-                        className="mb-6 rounded-xl border border-red-200 bg-red-50 px-5 py-3 text-sm text-red-700"
-                    >
-                        {actionError}
-                    </div>
-                )}
-
-                {!loading && !error && cartItems.length > 0 && (
+                {!loading && !error && !placedOrder && cartItems.length > 0 && (
                     <div className="grid gap-8 lg:grid-cols-[1fr_380px]">
                         <section>
                             <div className="mb-5 flex items-center justify-between">
@@ -272,7 +353,7 @@ function Cart({ onBack }) {
 
                                 <button
                                     type="button"
-                                    disabled={clearing || busyItemId !== null}
+                                    disabled={clearing || busyItemId !== null || placingOrder}
                                     onClick={clearCart}
                                     className="text-sm font-semibold text-[#7b1e1e] hover:underline disabled:opacity-50"
                                 >
@@ -301,7 +382,7 @@ function Cart({ onBack }) {
                                                 <div className="flex items-center rounded-xl border border-[#dfd0c1]">
                                                     <button
                                                         type="button"
-                                                        disabled={busyItemId === item.id || clearing}
+                                                        disabled={busyItemId === item.id || clearing || placingOrder}
                                                         onClick={() => decreaseQuantity(item)}
                                                         aria-label={`Decrease ${item.name} quantity`}
                                                         className="px-4 py-2 text-lg font-semibold text-[#7b1e1e] hover:bg-[#f7f0e6] disabled:opacity-50"
@@ -313,7 +394,7 @@ function Cart({ onBack }) {
                                                     </span>
                                                     <button
                                                         type="button"
-                                                        disabled={busyItemId === item.id || clearing}
+                                                        disabled={busyItemId === item.id || clearing || placingOrder}
                                                         onClick={() => increaseQuantity(item)}
                                                         aria-label={`Increase ${item.name} quantity`}
                                                         className="px-4 py-2 text-lg font-semibold text-[#7b1e1e] hover:bg-[#f7f0e6] disabled:opacity-50"
@@ -328,7 +409,7 @@ function Cart({ onBack }) {
                                                     </p>
                                                     <button
                                                         type="button"
-                                                        disabled={busyItemId === item.id || clearing}
+                                                        disabled={busyItemId === item.id || clearing || placingOrder}
                                                         onClick={() => removeItem(item)}
                                                         className="mt-1 text-xs font-semibold text-red-600 hover:underline disabled:opacity-50"
                                                     >
@@ -374,15 +455,24 @@ function Cart({ onBack }) {
 
                                 <button
                                     type="button"
-                                    disabled
-                                    className="mt-6 w-full cursor-not-allowed rounded-xl bg-[#7b1e1e] px-5 py-3.5 font-semibold text-white opacity-70"
+                                    disabled={
+                                        cartItems.length === 0 ||
+                                        placingOrder ||
+                                        clearing ||
+                                        busyItemId !== null
+                                    }
+                                    onClick={handlePlaceOrder}
+                                    className="mt-6 flex w-full items-center justify-center rounded-xl bg-[#7b1e1e] px-5 py-3.5 font-semibold text-white transition hover:bg-[#641818] disabled:cursor-not-allowed disabled:opacity-50"
                                 >
-                                    Place Order
+                                    {placingOrder ? (
+                                        <span className="flex items-center gap-2">
+                                            <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                                            Placing Order...
+                                        </span>
+                                    ) : (
+                                        'Place Order'
+                                    )}
                                 </button>
-
-                                <p className="mt-4 text-center text-xs leading-5 text-gray-400">
-                                    Order placement will be connected to the backend API later.
-                                </p>
                             </div>
                         </aside>
                     </div>

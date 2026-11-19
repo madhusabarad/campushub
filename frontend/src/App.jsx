@@ -2,7 +2,43 @@ import { useEffect, useState } from 'react'
 import Dashboard from './Dashboard'
 import Menu from './Menu'
 import Cart from './Cart'
+import AdminDashboard from './AdminDashboard'
+import ShopkeeperDashboard from './ShopkeeperDashboard'
 import './App.css'
+
+// Decode a JWT payload without a library (base64url → JSON)
+function decodeJwt(token) {
+  try {
+    const payload = token.split('.')[1]
+    const base64 = payload.replace(/-/g, '+').replace(/_/g, '/')
+    return JSON.parse(atob(base64))
+  } catch {
+    return {}
+  }
+}
+
+function getStoredUser() {
+  const token = localStorage.getItem('campushub_token')
+  if (!token) return null
+  const payload = decodeJwt(token)
+  // Check expiry
+  if (payload.exp && payload.exp * 1000 < Date.now()) {
+    localStorage.removeItem('campushub_token')
+    localStorage.removeItem('campushub_user')
+    return null
+  }
+  let storedUser = null
+  try {
+    const raw = localStorage.getItem('campushub_user')
+    if (raw) storedUser = JSON.parse(raw)
+  } catch {
+    storedUser = null
+  }
+  return {
+    ...payload,
+    ...(storedUser || {}),
+  }
+}
 
 function LoginPage({ onLogin }) {
   const [isSignup, setIsSignup] = useState(false)
@@ -10,7 +46,6 @@ function LoginPage({ onLogin }) {
     name: '',
     email: '',
     password: '',
-    role: 'student',
     collegeId: '',
   })
   const [loading, setLoading] = useState(false)
@@ -39,7 +74,7 @@ function LoginPage({ onLogin }) {
           name: formData.name.trim(),
           email: formData.email.trim(),
           password: formData.password,
-          role: formData.role,
+          role: 'student',
           collegeId: formData.collegeId.trim(),
         }
         : {
@@ -67,7 +102,6 @@ function LoginPage({ onLogin }) {
           name: '',
           email: formData.email.trim(),
           password: '',
-          role: 'student',
           collegeId: '',
         })
         setError('Account created successfully. Please log in.')
@@ -75,12 +109,13 @@ function LoginPage({ onLogin }) {
       }
 
       const token = data.token || data.data?.token
+      const userData = data.user || data.data?.user
 
       if (!token) {
         throw new Error('Authentication token was not received')
       }
 
-      onLogin(token)
+      onLogin(token, userData)
     } catch (err) {
       setError(err.message || 'Something went wrong')
     } finally {
@@ -140,7 +175,7 @@ function LoginPage({ onLogin }) {
 
               <p className="text-gray-500 mt-2">
                 {isSignup
-                  ? 'Create your account to get started.'
+                  ? 'Student accounts only. Contact admin for other roles.'
                   : 'Enter your details to continue.'}
               </p>
             </div>
@@ -180,24 +215,6 @@ function LoginPage({ onLogin }) {
 
                   <div>
                     <label className="block text-sm font-medium text-[#3f2720] mb-2">
-                      Role
-                    </label>
-
-                    <select
-                      name="role"
-                      value={formData.role}
-                      onChange={handleChange}
-                      required
-                      className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 outline-none focus:border-[#7b1e1e] focus:ring-2 focus:ring-[#7b1e1e]/10"
-                    >
-                      <option value="student">Student</option>
-                      <option value="shopkeeper">Shopkeeper</option>
-                      <option value="admin">Admin</option>
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-[#3f2720] mb-2">
                       College ID
                     </label>
 
@@ -207,7 +224,7 @@ function LoginPage({ onLogin }) {
                       value={formData.collegeId}
                       onChange={handleChange}
                       required
-                      placeholder="Enter your actual college ID"
+                      placeholder="Enter your college ID"
                       className="w-full rounded-xl border border-gray-200 px-4 py-3 outline-none focus:border-[#7b1e1e] focus:ring-2 focus:ring-[#7b1e1e]/10"
                     />
                   </div>
@@ -286,12 +303,13 @@ function LoginPage({ onLogin }) {
 }
 
 function App() {
-  const [isLoggedIn, setIsLoggedIn] = useState(
-    localStorage.getItem('campushub_token') !== null
-  )
-
+  const [user, setUser] = useState(() => getStoredUser())
   const [currentPage, setCurrentPage] = useState('dashboard')
   const [selectedShopId, setSelectedShopId] = useState(null)
+
+  const isLoggedIn = user !== null
+  const userRole = user?.role || 'student'
+  const userName = user?.name || ''
 
   useEffect(() => {
     const handlePopState = (event) => {
@@ -322,9 +340,16 @@ function App() {
     }
   }, [])
 
-  const handleLogin = (token) => {
+  const handleLogin = (token, userData) => {
     localStorage.setItem('campushub_token', token)
-    setIsLoggedIn(true)
+    if (userData) {
+      localStorage.setItem('campushub_user', JSON.stringify(userData))
+    }
+    const payload = decodeJwt(token)
+    setUser({
+      ...payload,
+      ...(userData || {}),
+    })
     setCurrentPage('dashboard')
     setSelectedShopId(null)
 
@@ -337,7 +362,8 @@ function App() {
 
   const handleLogout = () => {
     localStorage.removeItem('campushub_token')
-    setIsLoggedIn(false)
+    localStorage.removeItem('campushub_user')
+    setUser(null)
     setCurrentPage('dashboard')
     setSelectedShopId(null)
 
@@ -385,11 +411,22 @@ function App() {
     return <LoginPage onLogin={handleLogin} />
   }
 
+  // Admin gets a dedicated dashboard
+  if (userRole === 'admin' && currentPage === 'dashboard') {
+    return <AdminDashboard onLogout={handleLogout} />
+  }
+
+  // Shopkeeper gets a dedicated dashboard
+  if (userRole === 'shopkeeper' && currentPage === 'dashboard') {
+    return <ShopkeeperDashboard onLogout={handleLogout} />
+  }
+
   if (currentPage === 'menu' && selectedShopId) {
     return (
       <Menu
         shopId={selectedShopId}
         onBack={goToDashboard}
+        userRole={userRole}
       />
     )
   }
@@ -403,6 +440,8 @@ function App() {
       onOpenMenu={openMenu}
       onOpenCart={openCart}
       onLogout={handleLogout}
+      userRole={userRole}
+      userName={userName}
     />
   )
 }
