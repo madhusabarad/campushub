@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import Button from './Button'
 import Badge from './Badge'
 import NavIcon from './NavIcon'
+import ThemeToggle from './ThemeToggle'
 import { NAV_ITEMS } from './navigation'
 
 export default function MobileNav({
@@ -145,6 +146,14 @@ export default function MobileNav({
             )
           })}
         </nav>
+
+        {/* Theme Preference */}
+        <div className="border-t border-border bg-surface px-4 py-3">
+          <p className="px-1 pb-2 text-[11px] font-semibold uppercase tracking-[0.15em] text-muted-text">
+            Theme
+          </p>
+          <ThemeToggle variant="segmented" />
+        </div>
 
         {/* Footer */}
         <div className="border-t border-border bg-surface p-4">

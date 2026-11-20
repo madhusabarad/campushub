@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import {
   Routes,
   Route,
@@ -21,6 +21,7 @@ import AdminUsers from './AdminUsers'
 import AdminShops from './AdminShops'
 import AdminOrders from './AdminOrders'
 import AppLayout from './components/AppLayout'
+import ThemeToggle from './components/ThemeToggle'
 import { OrderNotificationProvider } from './context/OrderNotificationContext'
 import './App.css'
 
@@ -191,9 +192,14 @@ function LoginPage({ onLogin }) {
   }
 
   return (
-    <div className="min-h-screen bg-[#f7f0e6] flex items-center justify-center px-6 py-10">
-      <div className="w-full max-w-6xl min-h-[650px] bg-white rounded-3xl overflow-hidden shadow-2xl grid grid-cols-1 md:grid-cols-2">
-        <div className="bg-[#7b1e1e] text-white p-10 md:p-14 flex flex-col justify-center">
+    <div className="relative min-h-screen bg-background text-text flex items-center justify-center px-6 py-10">
+      {/* Theme Toggle in top corner before login */}
+      <div className="fixed top-5 right-5 z-50">
+        <ThemeToggle />
+      </div>
+
+      <div className="w-full max-w-6xl min-h-[650px] bg-surface rounded-3xl overflow-hidden shadow-2xl border border-border grid grid-cols-1 md:grid-cols-2">
+        <div className="bg-[#7b1e1e] dark:bg-[#341818] text-white p-10 md:p-14 flex flex-col justify-center border-b md:border-b-0 md:border-r border-border">
           <div className="max-w-md">
             <p className="text-sm uppercase tracking-[0.3em] text-[#f4d7b7] mb-5">
               Welcome to
@@ -227,18 +233,18 @@ function LoginPage({ onLogin }) {
           </div>
         </div>
 
-        <div className="p-8 md:p-14 flex items-center">
+        <div className="p-8 md:p-14 flex items-center bg-surface text-text">
           <div className="w-full max-w-md mx-auto">
             <div className="mb-8">
-              <p className="text-sm uppercase tracking-[0.2em] text-[#8b5e3c] mb-2">
+              <p className="text-sm uppercase tracking-[0.2em] text-accent mb-2">
                 {isSignup ? 'Create account' : 'Welcome back'}
               </p>
 
-              <h2 className="text-3xl font-bold text-[#3f2720]">
+              <h2 className="text-3xl font-bold text-text">
                 {isSignup ? 'Join CampusHub' : 'Sign in to CampusHub'}
               </h2>
 
-              <p className="text-gray-500 mt-2">
+              <p className="text-muted-text mt-2">
                 {isSignup
                   ? 'Create your account to get started.'
                   : 'Enter your details to continue.'}
@@ -250,8 +256,8 @@ function LoginPage({ onLogin }) {
                 role="status"
                 className={`mb-5 rounded-xl border px-4 py-3 text-sm ${
                   error.includes('successfully')
-                    ? 'border-green-200 bg-green-50 text-green-700'
-                    : 'border-red-200 bg-red-50 text-red-700'
+                    ? 'border-green-300 bg-green-50 text-green-800 dark:border-green-800 dark:bg-green-950/40 dark:text-green-300'
+                    : 'border-red-300 bg-red-50 text-red-800 dark:border-red-800 dark:bg-red-950/40 dark:text-red-300'
                 }`}
               >
                 {error}
@@ -261,7 +267,7 @@ function LoginPage({ onLogin }) {
             <form onSubmit={handleSubmit} className="space-y-4">
               {isSignup && (
                 <div>
-                  <label className="mb-2 block text-sm font-semibold text-gray-700">
+                  <label className="mb-2 block text-sm font-semibold text-text">
                     Full Name
                   </label>
                   <input
@@ -271,13 +277,13 @@ function LoginPage({ onLogin }) {
                     onChange={handleChange}
                     required
                     placeholder="Enter your full name"
-                    className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none transition focus:border-[#7b1e1e]"
+                    className="w-full rounded-xl border border-border bg-surface px-4 py-3 text-sm text-text placeholder:text-muted-text/50 outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
                   />
                 </div>
               )}
 
               <div>
-                <label className="mb-2 block text-sm font-semibold text-gray-700">
+                <label className="mb-2 block text-sm font-semibold text-text">
                   Campus Email
                 </label>
                 <input
@@ -287,12 +293,12 @@ function LoginPage({ onLogin }) {
                   onChange={handleChange}
                   required
                   placeholder="Enter your campus email"
-                  className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none transition focus:border-[#7b1e1e]"
+                  className="w-full rounded-xl border border-border bg-surface px-4 py-3 text-sm text-text placeholder:text-muted-text/50 outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
                 />
               </div>
 
               <div>
-                <label className="mb-2 block text-sm font-semibold text-gray-700">
+                <label className="mb-2 block text-sm font-semibold text-text">
                   Password
                 </label>
                 <input
@@ -302,13 +308,13 @@ function LoginPage({ onLogin }) {
                   onChange={handleChange}
                   required
                   placeholder="Enter your password"
-                  className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none transition focus:border-[#7b1e1e]"
+                  className="w-full rounded-xl border border-border bg-surface px-4 py-3 text-sm text-text placeholder:text-muted-text/50 outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
                 />
               </div>
 
               {isSignup && (
                 <div>
-                  <label className="mb-2 block text-sm font-semibold text-gray-700">
+                  <label className="mb-2 block text-sm font-semibold text-text">
                     College ID
                   </label>
                   <input
@@ -318,7 +324,7 @@ function LoginPage({ onLogin }) {
                     onChange={handleChange}
                     required
                     placeholder="Enter your college ID"
-                    className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none transition focus:border-[#7b1e1e]"
+                    className="w-full rounded-xl border border-border bg-surface px-4 py-3 text-sm text-text placeholder:text-muted-text/50 outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
                   />
                 </div>
               )}
@@ -326,7 +332,7 @@ function LoginPage({ onLogin }) {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full rounded-xl bg-[#7b1e1e] px-4 py-3.5 font-semibold text-white transition hover:bg-[#641818] disabled:cursor-not-allowed disabled:opacity-60"
+                className="w-full rounded-xl bg-primary px-4 py-3.5 font-semibold text-white transition hover:bg-primary-hover disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer"
               >
                 {loading
                   ? 'Please wait...'
@@ -336,7 +342,7 @@ function LoginPage({ onLogin }) {
               </button>
             </form>
 
-            <div className="mt-6 text-center text-sm text-gray-500">
+            <div className="mt-6 text-center text-sm text-muted-text">
               {isSignup
                 ? 'Already have an account?'
                 : "Don't have an account?"}
@@ -347,7 +353,7 @@ function LoginPage({ onLogin }) {
                   setIsSignup(!isSignup)
                   setError('')
                 }}
-                className="ml-2 font-semibold text-[#7b1e1e] hover:underline"
+                className="ml-2 font-semibold text-primary hover:underline cursor-pointer"
               >
                 {isSignup ? 'Login' : 'Sign up'}
               </button>

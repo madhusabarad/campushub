@@ -2,6 +2,7 @@ import { useState } from 'react'
 import Button from './Button'
 import Badge from './Badge'
 import NotificationDropdown from './NotificationDropdown'
+import ThemeToggle from './ThemeToggle'
 import { useOrderNotifications } from '../context/OrderNotificationContext'
 
 const PAGE_TITLES = {
@@ -122,6 +123,9 @@ export default function Topbar({
         <Badge variant="default" size="sm" className="hidden sm:inline-flex">
           Student Portal
         </Badge>
+
+        {/* Theme Mode Toggle Button */}
+        <ThemeToggle />
 
         {/* Notification Bell Button */}
         <div className="relative">
