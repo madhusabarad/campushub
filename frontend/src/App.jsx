@@ -1,13 +1,29 @@
 import { useEffect, useState } from 'react'
+import {
+  Routes,
+  Route,
+  Navigate,
+  useNavigate,
+  useParams,
+  useLocation,
+} from 'react-router-dom'
 import Dashboard from './Dashboard'
 import Menu from './Menu'
 import Cart from './Cart'
 import Xerox from './Xerox'
 import AdminDashboard from './AdminDashboard'
 import ShopkeeperDashboard from './ShopkeeperDashboard'
+import MyOrders from './MyOrders'
+import XeroxHistory from './XeroxHistory'
+import ShopkeeperXerox from './ShopkeeperXerox'
+import ShopkeeperOrders from './ShopkeeperOrders'
+import AdminUsers from './AdminUsers'
+import AdminShops from './AdminShops'
+import AdminOrders from './AdminOrders'
+import { OrderNotificationProvider } from './context/OrderNotificationContext'
 import './App.css'
 
-// Decode a JWT payload without a library (base64url → JSON)
+// Decode a JWT payload without external library (base64url -> JSON)
 function decodeJwt(token) {
   try {
     const payload = token.split('.')[1]
@@ -21,13 +37,15 @@ function decodeJwt(token) {
 function getStoredUser() {
   const token = localStorage.getItem('campushub_token')
   if (!token) return null
+
   const payload = decodeJwt(token)
-  // Check expiry
   if (payload.exp && payload.exp * 1000 < Date.now()) {
     localStorage.removeItem('campushub_token')
+    localStorage.removeItem('campushub_role')
     localStorage.removeItem('campushub_user')
     return null
   }
+
   let storedUser = null
   try {
     const raw = localStorage.getItem('campushub_user')
@@ -35,10 +53,51 @@ function getStoredUser() {
   } catch {
     storedUser = null
   }
+
+  const storedRole = localStorage.getItem('campushub_role')
+  const role = (storedRole || storedUser?.role || payload?.role || 'student').toLowerCase()
+
   return {
     ...payload,
     ...(storedUser || {}),
+    role,
   }
+}
+
+function getDashboardRouteForRole(role) {
+  const r = (role || 'student').toLowerCase()
+  if (r === 'admin') return '/admin'
+  if (r === 'shopkeeper') return '/shopkeeper'
+  return '/dashboard'
+}
+
+function resolveProtectedPage(requestedPath, role) {
+  const r = (role || 'student').toLowerCase()
+  const cleanPath = (requestedPath || '').replace(/^\/+/, '')
+
+  if (r === 'admin') {
+    if (cleanPath.startsWith('admin')) return `/${cleanPath}`
+    return '/admin'
+  }
+
+  if (r === 'shopkeeper') {
+    if (cleanPath.startsWith('shopkeeper')) return `/${cleanPath}`
+    return '/shopkeeper'
+  }
+
+  // Student role
+  if (
+    cleanPath.startsWith('dashboard') ||
+    cleanPath.startsWith('student-dashboard') ||
+    cleanPath.startsWith('menu') ||
+    cleanPath.startsWith('cart') ||
+    cleanPath.startsWith('my-orders') ||
+    cleanPath.startsWith('xerox')
+  ) {
+    return `/${cleanPath}`
+  }
+
+  return '/dashboard'
 }
 
 function LoginPage({ onLogin }) {
@@ -66,22 +125,20 @@ function LoginPage({ onLogin }) {
     setError('')
 
     try {
-      const endpoint = isSignup
-        ? '/api/auth/register'
-        : '/api/auth/login'
+      const endpoint = isSignup ? '/api/auth/register' : '/api/auth/login'
 
       const body = isSignup
         ? {
-          name: formData.name.trim(),
-          email: formData.email.trim(),
-          password: formData.password,
-          role: 'student',
-          collegeId: formData.collegeId.trim(),
-        }
+            name: formData.name.trim(),
+            email: formData.email.trim(),
+            password: formData.password,
+            role: 'student',
+            collegeId: formData.collegeId.trim(),
+          }
         : {
-          email: formData.email.trim(),
-          password: formData.password,
-        }
+            email: formData.email.trim(),
+            password: formData.password,
+          }
 
       const response = await fetch(endpoint, {
         method: 'POST',
@@ -110,13 +167,21 @@ function LoginPage({ onLogin }) {
       }
 
       const token = data.token || data.data?.token
-      const userData = data.user || data.data?.user
+      const userData = data.user || data.data?.user || {}
 
       if (!token) {
         throw new Error('Authentication token was not received')
       }
 
-      onLogin(token, userData)
+      let userRole = userData.role || data.role || data.data?.role
+      if (!userRole && token) {
+        const payload = decodeJwt(token)
+        userRole = payload?.role
+      }
+      userRole = (userRole || 'student').toLowerCase()
+
+      const fullUser = { ...userData, role: userRole }
+      onLogin(token, userRole, fullUser)
     } catch (err) {
       setError(err.message || 'Something went wrong')
     } finally {
@@ -127,7 +192,6 @@ function LoginPage({ onLogin }) {
   return (
     <div className="min-h-screen bg-[#f7f0e6] flex items-center justify-center px-6 py-10">
       <div className="w-full max-w-6xl min-h-[650px] bg-white rounded-3xl overflow-hidden shadow-2xl grid grid-cols-1 md:grid-cols-2">
-
         <div className="bg-[#7b1e1e] text-white p-10 md:p-14 flex flex-col justify-center">
           <div className="max-w-md">
             <p className="text-sm uppercase tracking-[0.3em] text-[#f4d7b7] mb-5">
@@ -164,7 +228,6 @@ function LoginPage({ onLogin }) {
 
         <div className="p-8 md:p-14 flex items-center">
           <div className="w-full max-w-md mx-auto">
-
             <div className="mb-8">
               <p className="text-sm uppercase tracking-[0.2em] text-[#8b5e3c] mb-2">
                 {isSignup ? 'Create account' : 'Welcome back'}
@@ -176,7 +239,7 @@ function LoginPage({ onLogin }) {
 
               <p className="text-gray-500 mt-2">
                 {isSignup
-                  ? 'Student accounts only. Contact admin for other roles.'
+                  ? 'Create your account to get started.'
                   : 'Enter your details to continue.'}
               </p>
             </div>
@@ -184,88 +247,80 @@ function LoginPage({ onLogin }) {
             {error && (
               <div
                 role="status"
-                className={`mb-5 rounded-xl border px-4 py-3 text-sm ${error.includes('successfully')
+                className={`mb-5 rounded-xl border px-4 py-3 text-sm ${
+                  error.includes('successfully')
                     ? 'border-green-200 bg-green-50 text-green-700'
                     : 'border-red-200 bg-red-50 text-red-700'
-                  }`}
+                }`}
               >
                 {error}
               </div>
             )}
 
-            <form onSubmit={handleSubmit} className="space-y-5">
-
+            <form onSubmit={handleSubmit} className="space-y-4">
               {isSignup && (
-                <>
-                  <div>
-                    <label className="block text-sm font-medium text-[#3f2720] mb-2">
-                      Name
-                    </label>
-
-                    <input
-                      type="text"
-                      name="name"
-                      value={formData.name}
-                      onChange={handleChange}
-                      required
-                      autoComplete="name"
-                      placeholder="Enter your name"
-                      className="w-full rounded-xl border border-gray-200 px-4 py-3 outline-none focus:border-[#7b1e1e] focus:ring-2 focus:ring-[#7b1e1e]/10"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-[#3f2720] mb-2">
-                      College ID
-                    </label>
-
-                    <input
-                      type="text"
-                      name="collegeId"
-                      value={formData.collegeId}
-                      onChange={handleChange}
-                      required
-                      placeholder="Enter your college ID"
-                      className="w-full rounded-xl border border-gray-200 px-4 py-3 outline-none focus:border-[#7b1e1e] focus:ring-2 focus:ring-[#7b1e1e]/10"
-                    />
-                  </div>
-                </>
+                <div>
+                  <label className="mb-2 block text-sm font-semibold text-gray-700">
+                    Full Name
+                  </label>
+                  <input
+                    type="text"
+                    name="name"
+                    value={formData.name}
+                    onChange={handleChange}
+                    required
+                    placeholder="Enter your full name"
+                    className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none transition focus:border-[#7b1e1e]"
+                  />
+                </div>
               )}
 
               <div>
-                <label className="block text-sm font-medium text-[#3f2720] mb-2">
-                  Email
+                <label className="mb-2 block text-sm font-semibold text-gray-700">
+                  Campus Email
                 </label>
-
                 <input
                   type="email"
                   name="email"
                   value={formData.email}
                   onChange={handleChange}
                   required
-                  autoComplete="email"
-                  placeholder="Enter your email"
-                  className="w-full rounded-xl border border-gray-200 px-4 py-3 outline-none focus:border-[#7b1e1e] focus:ring-2 focus:ring-[#7b1e1e]/10"
+                  placeholder="Enter your campus email"
+                  className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none transition focus:border-[#7b1e1e]"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-[#3f2720] mb-2">
+                <label className="mb-2 block text-sm font-semibold text-gray-700">
                   Password
                 </label>
-
                 <input
                   type="password"
                   name="password"
                   value={formData.password}
                   onChange={handleChange}
                   required
-                  minLength={6}
-                  autoComplete={isSignup ? 'new-password' : 'current-password'}
                   placeholder="Enter your password"
-                  className="w-full rounded-xl border border-gray-200 px-4 py-3 outline-none focus:border-[#7b1e1e] focus:ring-2 focus:ring-[#7b1e1e]/10"
+                  className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none transition focus:border-[#7b1e1e]"
                 />
               </div>
+
+              {isSignup && (
+                <div>
+                  <label className="mb-2 block text-sm font-semibold text-gray-700">
+                    College ID
+                  </label>
+                  <input
+                    type="text"
+                    name="collegeId"
+                    value={formData.collegeId}
+                    onChange={handleChange}
+                    required
+                    placeholder="Enter your college ID"
+                    className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none transition focus:border-[#7b1e1e]"
+                  />
+                </div>
+              )}
 
               <button
                 type="submit"
@@ -303,170 +358,254 @@ function LoginPage({ onLogin }) {
   )
 }
 
+function MenuRouteWrapper({ onBack, userRole }) {
+  const { shopId } = useParams()
+  return <Menu shopId={shopId} onBack={onBack} userRole={userRole} />
+}
+
+function ProtectedRoute({ children, user, allowedRoles }) {
+  const location = useLocation()
+
+  if (!user) {
+    return <Navigate to="/login" state={{ from: location }} replace />
+  }
+
+  const role = (user.role || 'student').toLowerCase()
+  if (allowedRoles && !allowedRoles.includes(role)) {
+    const targetDashboard = getDashboardRouteForRole(role)
+    return <Navigate to={targetDashboard} replace />
+  }
+
+  return children
+}
+
 function App() {
   const [user, setUser] = useState(() => getStoredUser())
-  const [currentPage, setCurrentPage] = useState('dashboard')
-  const [selectedShopId, setSelectedShopId] = useState(null)
+  const navigate = useNavigate()
 
-  const isLoggedIn = user !== null
-  const userRole = user?.role || 'student'
-  const userName = user?.name || ''
+  const role = (user?.role || 'student').toLowerCase()
 
-  useEffect(() => {
-    const handlePopState = (event) => {
-      const state = event.state
+  const handleLogin = (token, roleArg, userArg) => {
+    let tokenVal = token
+    let roleVal = roleArg
+    let userVal = userArg
 
-      if (!state || state.page === 'dashboard') {
-        setCurrentPage('dashboard')
-        setSelectedShopId(null)
-        return
-      }
-
-      if (state.page === 'menu') {
-        setCurrentPage('menu')
-        setSelectedShopId(state.shopId)
-        return
-      }
-
-      if (state.page === 'cart') {
-        setCurrentPage('cart')
-        setSelectedShopId(null)
-        return
-      }
-
-      if (state.page === 'xerox') {
-        setCurrentPage('xerox')
-        setSelectedShopId(null)
-      }
+    if (typeof token === 'object' && token !== null && !roleArg) {
+      tokenVal = token.token || token.data?.token
+      userVal = token.user || token.data?.user
+      roleVal = userVal?.role || token.role
+    } else if (typeof roleArg === 'object' && roleArg !== null && !userArg) {
+      userVal = roleArg
+      roleVal = roleArg.role
     }
 
-    window.addEventListener('popstate', handlePopState)
-
-    return () => {
-      window.removeEventListener('popstate', handlePopState)
+    if (!roleVal && tokenVal) {
+      const payload = decodeJwt(tokenVal)
+      roleVal = payload?.role
     }
-  }, [])
 
-  const handleLogin = (token, userData) => {
-    localStorage.setItem('campushub_token', token)
-    if (userData) {
-      localStorage.setItem('campushub_user', JSON.stringify(userData))
-    }
-    const payload = decodeJwt(token)
-    setUser({
-      ...payload,
-      ...(userData || {}),
-    })
-    setCurrentPage('dashboard')
-    setSelectedShopId(null)
+    roleVal = (roleVal || 'student').toLowerCase()
+    userVal = { ...(userVal || {}), role: roleVal }
 
-    window.history.replaceState(
-      { page: 'dashboard' },
-      '',
-      window.location.pathname
-    )
+    localStorage.setItem('campushub_token', tokenVal)
+    localStorage.setItem('campushub_role', roleVal)
+    localStorage.setItem('campushub_user', JSON.stringify(userVal))
+
+    setUser(userVal)
+
+    const targetRoute = getDashboardRouteForRole(roleVal)
+    navigate(targetRoute, { replace: true })
   }
 
   const handleLogout = () => {
     localStorage.removeItem('campushub_token')
+    localStorage.removeItem('campushub_role')
     localStorage.removeItem('campushub_user')
+    localStorage.removeItem('campushub_notifications')
+    localStorage.removeItem('campushub_known_statuses')
+    localStorage.removeItem('token')
+    localStorage.removeItem('role')
+    localStorage.removeItem('user')
+
     setUser(null)
-    setCurrentPage('dashboard')
-    setSelectedShopId(null)
-
-    window.history.replaceState(
-      { page: 'login' },
-      '',
-      window.location.pathname
-    )
-  }
-
-  const openMenu = (shopId) => {
-    setSelectedShopId(shopId)
-    setCurrentPage('menu')
-
-    window.history.pushState(
-      { page: 'menu', shopId },
-      '',
-      window.location.pathname
-    )
-  }
-
-  const openCart = () => {
-    setCurrentPage('cart')
-    setSelectedShopId(null)
-
-    window.history.pushState(
-      { page: 'cart' },
-      '',
-      window.location.pathname
-    )
-  }
-
-  const openXerox = () => {
-    setCurrentPage('xerox')
-    setSelectedShopId(null)
-
-    window.history.pushState(
-      { page: 'xerox' },
-      '',
-      window.location.pathname
-    )
-  }
-
-  const goToDashboard = () => {
-    setCurrentPage('dashboard')
-    setSelectedShopId(null)
-
-    window.history.pushState(
-      { page: 'dashboard' },
-      '',
-      window.location.pathname
-    )
-  }
-
-  if (!isLoggedIn) {
-    return <LoginPage onLogin={handleLogin} />
-  }
-
-  // Admin gets a dedicated dashboard
-  if (userRole === 'admin' && currentPage === 'dashboard') {
-    return <AdminDashboard onLogout={handleLogout} />
-  }
-
-  // Shopkeeper gets a dedicated dashboard
-  if (userRole === 'shopkeeper' && currentPage === 'dashboard') {
-    return <ShopkeeperDashboard onLogout={handleLogout} />
-  }
-
-  if (currentPage === 'menu' && selectedShopId) {
-    return (
-      <Menu
-        shopId={selectedShopId}
-        onBack={goToDashboard}
-        userRole={userRole}
-      />
-    )
-  }
-
-  if (currentPage === 'cart') {
-    return <Cart onBack={goToDashboard} />
-  }
-
-  if (currentPage === 'xerox') {
-    return <Xerox onBack={goToDashboard} userRole={userRole} />
+    navigate('/login', { replace: true })
   }
 
   return (
-    <Dashboard
-      onOpenMenu={openMenu}
-      onOpenCart={openCart}
-      onOpenXerox={openXerox}
-      onLogout={handleLogout}
-      userRole={userRole}
-      userName={userName}
-    />
+    <OrderNotificationProvider role={role}>
+      <Routes>
+        <Route
+          path="/login"
+          element={
+            user ? (
+              <Navigate to={getDashboardRouteForRole(role)} replace />
+            ) : (
+              <LoginPage onLogin={handleLogin} />
+            )
+          }
+        />
+
+        {/* Student Routes */}
+        <Route
+          path="/dashboard"
+          element={
+            <ProtectedRoute user={user} allowedRoles={['student']}>
+              <Dashboard
+                onOpenMenu={(shopId) => navigate(`/menu/${shopId}`)}
+                onOpenCart={() => navigate('/cart')}
+                onOpenOrders={() => navigate('/my-orders')}
+                onOpenXerox={() => navigate('/xerox')}
+                onLogout={handleLogout}
+                userRole={role}
+                userName={user?.name || ''}
+              />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/student-dashboard"
+          element={<Navigate to="/dashboard" replace />}
+        />
+
+        <Route
+          path="/menu/:shopId"
+          element={
+            <ProtectedRoute user={user} allowedRoles={['student']}>
+              <MenuRouteWrapper
+                onBack={() => navigate('/dashboard')}
+                userRole={role}
+              />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/cart"
+          element={
+            <ProtectedRoute user={user} allowedRoles={['student']}>
+              <Cart onBack={() => navigate('/dashboard')} />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/my-orders"
+          element={
+            <ProtectedRoute user={user} allowedRoles={['student']}>
+              <MyOrders onBack={() => navigate('/dashboard')} />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/xerox"
+          element={
+            <ProtectedRoute user={user} allowedRoles={['student']}>
+              <Xerox onBack={() => navigate('/dashboard')} userRole={role} />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/xerox-history"
+          element={
+            <ProtectedRoute user={user} allowedRoles={['student']}>
+              <XeroxHistory onBack={() => navigate('/dashboard')} />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Shopkeeper Routes */}
+        <Route
+          path="/shopkeeper"
+          element={
+            <ProtectedRoute user={user} allowedRoles={['shopkeeper']}>
+              <ShopkeeperDashboard onLogout={handleLogout} />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/shopkeeper-dashboard"
+          element={<Navigate to="/shopkeeper" replace />}
+        />
+
+        <Route
+          path="/shopkeeper/orders"
+          element={
+            <ProtectedRoute user={user} allowedRoles={['shopkeeper']}>
+              <ShopkeeperOrders />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/shopkeeper/xerox"
+          element={
+            <ProtectedRoute user={user} allowedRoles={['shopkeeper']}>
+              <ShopkeeperXerox />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Admin Routes */}
+        <Route
+          path="/admin"
+          element={
+            <ProtectedRoute user={user} allowedRoles={['admin']}>
+              <AdminDashboard onLogout={handleLogout} />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/admin-dashboard"
+          element={<Navigate to="/admin" replace />}
+        />
+
+        <Route
+          path="/admin/users"
+          element={
+            <ProtectedRoute user={user} allowedRoles={['admin']}>
+              <AdminUsers />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/admin/shops"
+          element={
+            <ProtectedRoute user={user} allowedRoles={['admin']}>
+              <AdminShops />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/admin/orders"
+          element={
+            <ProtectedRoute user={user} allowedRoles={['admin']}>
+              <AdminOrders />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Catch-all */}
+        <Route
+          path="*"
+          element={
+            user ? (
+              <Navigate to={getDashboardRouteForRole(role)} replace />
+            ) : (
+              <Navigate to="/login" replace />
+            )
+          }
+        />
+      </Routes>
+    </OrderNotificationProvider>
   )
 }
 
+export { resolveProtectedPage }
 export default App

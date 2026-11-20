@@ -4,6 +4,7 @@ const SHOP_ICONS = {
     canteen: '🍽️',
     foodcourt: '🍛',
     bakery: '🥐',
+    xerox: '🖨️',
 }
 
 const getHeaders = () => {
@@ -121,14 +122,23 @@ function RecentOrders({ orders, loading, error, onRetry }) {
                                 {order.orderToken}
                             </p>
                             <p className="mt-0.5 text-sm text-gray-500">
-                                {order.items.length} item{order.items.length !== 1 ? 's' : ''} · ₹{order.totalAmount}
+                                {order.items
+                                    ?.map((item) => `${item.name} × ${item.quantity}`)
+                                    .join(', ')}
                             </p>
                         </div>
-                        <span
-                            className={`self-start rounded-full px-3 py-1 text-xs font-semibold capitalize sm:self-center ${STATUS_COLORS[order.status] || 'bg-gray-100 text-gray-600'}`}
-                        >
-                            {order.status}
-                        </span>
+
+                        <div className="flex items-center gap-4 sm:flex-col sm:items-end sm:gap-1">
+                            <span
+                                className={`rounded-full px-3 py-1 text-xs font-semibold capitalize ${STATUS_COLORS[order.status] || 'bg-gray-100 text-gray-600'
+                                    }`}
+                            >
+                                {order.status}
+                            </span>
+                            <span className="font-bold text-[#7b1e1e]">
+                                ₹{order.totalAmount}
+                            </span>
+                        </div>
                     </div>
                 </div>
             ))}
@@ -136,7 +146,7 @@ function RecentOrders({ orders, loading, error, onRetry }) {
     )
 }
 
-function Dashboard({ onOpenMenu, onOpenCart, onOpenXerox, onLogout, userRole, userName }) {
+function Dashboard({ onOpenMenu, onOpenCart, onOpenOrders, onOpenXerox, onLogout, userRole = 'student', userName = '' }) {
     const [shops, setShops] = useState([])
     const [shopsLoading, setShopsLoading] = useState(true)
     const [shopsError, setShopsError] = useState('')
@@ -213,31 +223,30 @@ function Dashboard({ onOpenMenu, onOpenCart, onOpenXerox, onLogout, userRole, us
         }
     }, [userRole])
 
-    const roleLabel = {
-        student: 'Student Dashboard',
-        faculty: 'Faculty Dashboard',
-        shopkeeper: 'Shopkeeper Dashboard',
-        admin: 'Admin Dashboard',
-    }[userRole] || 'Dashboard'
-
     return (
         <main className="min-h-screen bg-[#f7f0e6] text-[#3f2720]">
-
-            {/* Header */}
-            <header className="border-b border-[#eadfd2] bg-[#fffaf4]">
-                <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-5">
-
+            <header className="border-b border-[#eadfd2] bg-white">
+                <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-5">
                     <div>
-                        <h1 className="text-2xl font-bold text-[#7b1e1e]">
+                        <p className="text-xs uppercase tracking-[0.25em] text-[#8b5e3c]">
+                            Student Portal
+                        </p>
+                        <h1 className="text-2xl font-bold tracking-tight">
                             CampusHub
                         </h1>
-
-                        <p className="text-sm text-gray-500">
-                            Your campus, connected
-                        </p>
                     </div>
 
                     <div className="flex items-center gap-3">
+                        {userRole === 'student' && onOpenOrders && (
+                            <button
+                                type="button"
+                                onClick={onOpenOrders}
+                                className="rounded-xl border border-[#7b1e1e] px-5 py-2.5 text-sm font-semibold text-[#7b1e1e] transition hover:bg-[#7b1e1e] hover:text-white"
+                            >
+                                My Orders
+                            </button>
+                        )}
+
                         {userRole === 'student' && (
                             <button
                                 type="button"
@@ -259,26 +268,22 @@ function Dashboard({ onOpenMenu, onOpenCart, onOpenXerox, onLogout, userRole, us
                 </div>
             </header>
 
-            {/* Main Content */}
-            <div className="mx-auto max-w-7xl px-6 py-10">
+            <div className="mx-auto max-w-6xl px-6 py-10">
 
-                {/* Welcome */}
+                {/* Hero section */}
                 <section className="mb-10">
-                    <p className="mb-2 text-sm font-semibold uppercase tracking-[0.2em] text-[#8b5e3c]">
-                        {roleLabel}
+                    <p className="text-sm uppercase tracking-[0.2em] text-[#8b5e3c]">
+                        Dashboard
                     </p>
-
-                    <h2 className="text-4xl font-bold text-[#3f2720]">
-                        Welcome{userName ? `, ${userName}` : ' to CampusHub'}
+                    <h2 className="mt-1 text-3xl font-bold md:text-4xl">
+                        Welcome{userName ? `, ${userName}` : ''}!
                     </h2>
-
-                    <p className="mt-3 max-w-2xl text-gray-600">
-                        Access campus services, explore food outlets and manage
-                        your campus activities from one place.
+                    <p className="mt-2 text-gray-600">
+                        Explore campus outlets and manage your campus activities from one place.
                     </p>
                 </section>
 
-                {/* Campus Services / Shops */}
+                {/* Campus Shops */}
                 <section className="mb-12">
                     <div className="mb-6">
                         <h3 className="text-2xl font-bold">Campus Shops</h3>
@@ -327,23 +332,19 @@ function Dashboard({ onOpenMenu, onOpenCart, onOpenXerox, onLogout, userRole, us
                     )}
                 </section>
 
-                {/* Xerox */}
+                {/* Xerox Service Promo Banner */}
                 <section className="mb-12">
                     <div className="rounded-2xl border border-[#eadfd2] bg-white p-7 shadow-sm">
                         <div className="flex flex-col justify-between gap-6 md:flex-row md:items-center">
-
                             <div>
                                 <p className="text-sm font-semibold uppercase tracking-[0.15em] text-[#8b5e3c]">
                                     Campus Service
                                 </p>
-
                                 <h3 className="mt-2 text-2xl font-bold">
                                     Xerox &amp; Printing
                                 </h3>
-
                                 <p className="mt-2 max-w-2xl text-gray-500">
-                                    Access printing and Xerox services available
-                                    around your campus.
+                                    Access printing and Xerox services available around your campus.
                                 </p>
                             </div>
 
@@ -354,7 +355,6 @@ function Dashboard({ onOpenMenu, onOpenCart, onOpenXerox, onLogout, userRole, us
                             >
                                 Explore Service
                             </button>
-
                         </div>
                     </div>
                 </section>

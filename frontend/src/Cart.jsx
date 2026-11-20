@@ -178,14 +178,14 @@ function Cart({ onBack }) {
     }
 
     const totalItems = useMemo(
-        () => cartItems.reduce((total, item) => total + item.quantity, 0),
+        () => cartItems.reduce((sum, item) => sum + item.quantity, 0),
         [cartItems],
     )
 
     const totalAmount = useMemo(
         () =>
             cartItems.reduce(
-                (total, item) => total + item.price * item.quantity,
+                (sum, item) => sum + item.price * item.quantity,
                 0,
             ),
         [cartItems],
@@ -193,13 +193,13 @@ function Cart({ onBack }) {
 
     return (
         <main className="min-h-screen bg-[#f7f0e6] text-[#3f2720]">
-            <header className="border-b border-[#eadfd2] bg-[#fffaf4]">
-                <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-5">
+            <header className="border-b border-[#eadfd2] bg-white">
+                <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-5">
                     <div>
-                        <h1 className="text-2xl font-bold text-[#7b1e1e]">
-                            CampusHub
-                        </h1>
-                        <p className="text-sm text-gray-500">Your campus, connected</p>
+                        <p className="text-xs uppercase tracking-[0.25em] text-[#8b5e3c]">
+                            Checkout
+                        </p>
+                        <h1 className="text-2xl font-bold tracking-tight">Your Cart</h1>
                     </div>
 
                     <button
@@ -212,60 +212,33 @@ function Cart({ onBack }) {
                 </div>
             </header>
 
-            <div className="mx-auto max-w-7xl px-6 py-10">
-                <section className="mb-8">
-                    <p className="mb-2 text-sm font-semibold uppercase tracking-[0.2em] text-[#8b5e3c]">
-                        Your Order
-                    </p>
-                    <h2 className="text-4xl font-bold">Cart</h2>
-                    <p className="mt-3 text-gray-600">
-                        Review your selected items before placing your order.
-                    </p>
-                </section>
+            <div className="mx-auto max-w-6xl px-6 py-10">
+                {actionError && (
+                    <div className="mb-6 rounded-2xl border border-red-200 bg-red-50 px-5 py-4 text-sm text-red-700">
+                        {actionError}
+                    </div>
+                )}
 
                 {loading && (
-                    <div className="mb-6 rounded-2xl border border-[#eadfd2] bg-white px-6 py-5 shadow-sm">
-                        <div className="flex items-center gap-3">
-                            <div className="h-5 w-5 animate-spin rounded-full border-2 border-[#eadfd2] border-t-[#7b1e1e]" />
-                            <p className="text-sm font-medium text-gray-600">
-                                Loading your cart...
-                            </p>
-                        </div>
+                    <div className="flex items-center gap-3 py-16">
+                        <div className="h-5 w-5 animate-spin rounded-full border-2 border-[#eadfd2] border-t-[#7b1e1e]" />
+                        <p className="text-sm text-gray-500">Loading your cart…</p>
                     </div>
                 )}
 
                 {!loading && error && (
-                    <div className="mb-6 rounded-2xl border border-red-200 bg-red-50 px-6 py-5">
-                        <p className="font-semibold text-red-700">
-                            Unable to load your cart
-                        </p>
+                    <div className="rounded-2xl border border-red-200 bg-red-50 p-6">
+                        <h3 className="text-lg font-semibold text-red-700">
+                            Failed to load cart
+                        </h3>
                         <p className="mt-1 text-sm text-red-600">{error}</p>
                         <button
                             type="button"
-                            onClick={async () => {
-                                setLoading(true)
-                                setError('')
-                                try {
-                                    await loadCart()
-                                } catch (err) {
-                                    setError(err.message || 'Unable to load your cart.')
-                                } finally {
-                                    setLoading(false)
-                                }
-                            }}
-                            className="mt-3 text-sm font-semibold text-red-700 underline"
+                            onClick={loadCart}
+                            className="mt-4 rounded-xl bg-red-700 px-4 py-2 text-sm font-semibold text-white"
                         >
                             Try again
                         </button>
-                    </div>
-                )}
-
-                {actionError && (
-                    <div
-                        role="alert"
-                        className="mb-6 rounded-xl border border-red-200 bg-red-50 px-5 py-3 text-sm text-red-700"
-                    >
-                        {actionError}
                     </div>
                 )}
 
@@ -303,17 +276,22 @@ function Cart({ onBack }) {
                             </div>
                             <div className="flex justify-between py-1">
                                 <span className="text-gray-500">Payment</span>
-                                <span className="font-medium">
-                                    {placedOrder.paymentMethod === 'razorpay' ? 'Razorpay' : 'Pay at counter'} ({placedOrder.paymentStatus || 'pending'})
-                                </span>
+                                <span className="capitalize">{placedOrder.paymentStatus || 'pending'}</span>
                             </div>
                         </div>
 
-                        <div className="mt-8 flex justify-center gap-4">
+                        <div className="mt-6 flex justify-center gap-4">
+                            <button
+                                type="button"
+                                onClick={() => setPlacedOrder(null)}
+                                className="rounded-xl border border-[#7b1e1e] px-6 py-3 font-semibold text-[#7b1e1e] transition hover:bg-[#7b1e1e] hover:text-white"
+                            >
+                                Order More
+                            </button>
                             <button
                                 type="button"
                                 onClick={onBack}
-                                className="rounded-xl bg-[#7b1e1e] px-8 py-3.5 font-semibold text-white transition hover:bg-[#641818]"
+                                className="rounded-xl bg-[#7b1e1e] px-6 py-3 font-semibold text-white transition hover:bg-[#641818]"
                             >
                                 Back to Dashboard
                             </button>
@@ -322,82 +300,72 @@ function Cart({ onBack }) {
                 )}
 
                 {!loading && !error && !placedOrder && cartItems.length === 0 && (
-                    <div className="rounded-2xl border border-[#eadfd2] bg-white px-6 py-16 text-center shadow-sm">
-                        <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-full bg-[#f1e3d5] text-3xl">
+                    <div className="rounded-2xl border border-dashed border-[#d9cabb] bg-[#fffaf4] p-12 text-center">
+                        <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-[#f1e3d5] text-2xl">
                             🛒
                         </div>
-                        <h3 className="text-2xl font-bold">Your cart is empty</h3>
-                        <p className="mx-auto mt-2 max-w-md text-gray-500">
-                            Add some items from a campus outlet to see them here.
+                        <h3 className="text-xl font-bold">Your cart is empty</h3>
+                        <p className="mt-2 text-sm text-gray-500">
+                            Browse campus outlets and add items to your cart.
                         </p>
                         <button
                             type="button"
                             onClick={onBack}
-                            className="mt-6 rounded-xl bg-[#7b1e1e] px-6 py-3 font-semibold text-white transition hover:bg-[#641818]"
+                            className="mt-6 rounded-xl bg-[#7b1e1e] px-6 py-3 text-sm font-semibold text-white transition hover:bg-[#641818]"
                         >
-                            Back to Dashboard
+                            Browse Shops
                         </button>
                     </div>
                 )}
 
                 {!loading && !error && !placedOrder && cartItems.length > 0 && (
-                    <div className="grid gap-8 lg:grid-cols-[1fr_380px]">
-                        <section>
-                            <div className="mb-5 flex items-center justify-between">
-                                <div>
-                                    <h3 className="text-2xl font-bold">Selected Items</h3>
-                                    <p className="mt-1 text-sm text-gray-500">
-                                        {totalItems} item{totalItems !== 1 ? 's' : ''} in your cart
-                                    </p>
-                                </div>
-
+                    <div className="grid gap-8 lg:grid-cols-3">
+                        <section className="lg:col-span-2">
+                            <div className="flex items-center justify-between border-b border-[#eadfd2] pb-4">
+                                <p className="text-sm font-semibold uppercase tracking-widest text-[#8b5e3c]">
+                                    {totalItems} item{totalItems > 1 ? 's' : ''} in cart
+                                </p>
                                 <button
                                     type="button"
-                                    disabled={clearing || busyItemId !== null || placingOrder}
+                                    disabled={clearing || placingOrder}
                                     onClick={clearCart}
-                                    className="text-sm font-semibold text-[#7b1e1e] hover:underline disabled:opacity-50"
+                                    className="text-sm font-semibold text-red-600 hover:underline disabled:opacity-50"
                                 >
-                                    {clearing ? 'Clearing...' : 'Clear Cart'}
+                                    {clearing ? 'Clearing…' : 'Clear cart'}
                                 </button>
                             </div>
 
-                            <div className="space-y-4">
+                            <div className="mt-4 divide-y divide-[#eadfd2]">
                                 {cartItems.map((item) => (
-                                    <div
-                                        key={item.id}
-                                        className="rounded-2xl border border-[#eadfd2] bg-white p-5 shadow-sm"
-                                    >
-                                        <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
+                                    <div key={item.id} className="py-4">
+                                        <div className="flex items-start justify-between gap-4">
                                             <div>
-                                                <p className="text-xs font-semibold uppercase tracking-[0.15em] text-[#8b5e3c]">
-                                                    {item.category}
-                                                </p>
-                                                <h4 className="mt-1 text-xl font-bold">{item.name}</h4>
-                                                <p className="mt-1 text-sm text-gray-500">
-                                                    ₹{item.price} each
+                                                <h4 className="font-bold text-[#3f2720]">
+                                                    {item.name}
+                                                </h4>
+                                                <p className="mt-0.5 text-xs text-gray-500">
+                                                    {item.category} • ₹{item.price} each
                                                 </p>
                                             </div>
 
-                                            <div className="flex items-center justify-between gap-6 sm:justify-end">
-                                                <div className="flex items-center rounded-xl border border-[#dfd0c1]">
+                                            <div className="flex items-center gap-4">
+                                                <div className="flex items-center rounded-xl border border-[#eadfd2] bg-white">
                                                     <button
                                                         type="button"
-                                                        disabled={busyItemId === item.id || clearing || placingOrder}
+                                                        disabled={busyItemId === item.id || placingOrder}
                                                         onClick={() => decreaseQuantity(item)}
-                                                        aria-label={`Decrease ${item.name} quantity`}
-                                                        className="px-4 py-2 text-lg font-semibold text-[#7b1e1e] hover:bg-[#f7f0e6] disabled:opacity-50"
+                                                        className="px-3 py-2 text-lg font-semibold text-[#7b1e1e] hover:bg-[#f7f0e6] disabled:opacity-50"
                                                     >
                                                         −
                                                     </button>
-                                                    <span className="min-w-10 text-center font-semibold">
+                                                    <span className="w-8 text-center text-sm font-bold">
                                                         {item.quantity}
                                                     </span>
                                                     <button
                                                         type="button"
-                                                        disabled={busyItemId === item.id || clearing || placingOrder}
+                                                        disabled={busyItemId === item.id || placingOrder}
                                                         onClick={() => increaseQuantity(item)}
-                                                        aria-label={`Increase ${item.name} quantity`}
-                                                        className="px-4 py-2 text-lg font-semibold text-[#7b1e1e] hover:bg-[#f7f0e6] disabled:opacity-50"
+                                                        className="px-3 py-2 text-lg font-semibold text-[#7b1e1e] hover:bg-[#f7f0e6] disabled:opacity-50"
                                                     >
                                                         +
                                                     </button>

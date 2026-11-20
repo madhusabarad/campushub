@@ -47,9 +47,18 @@ exports.createReview = async (req, res) => {
     });
 
     if (!order) {
-      return res.status(404).json({
+      return res.status(400).json({
         success: false,
-        message: 'Completed order not found.',
+        message: 'You can only review your own completed orders.',
+      });
+    }
+
+    const existingReview = await Review.findOne({ orderId: order._id });
+
+    if (existingReview) {
+      return res.status(400).json({
+        success: false,
+        message: 'You have already reviewed this order.',
       });
     }
 
@@ -68,7 +77,7 @@ exports.createReview = async (req, res) => {
     });
   } catch (error) {
     if (error.code === 11000) {
-      return res.status(409).json({
+      return res.status(400).json({
         success: false,
         message: 'You have already reviewed this order.',
       });

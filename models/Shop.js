@@ -9,7 +9,7 @@ const shopSchema = new mongoose.Schema(
     },
     category: {
       type: String,
-      enum: ['canteen', 'foodcourt', 'bakery'],
+      enum: ['canteen', 'foodcourt', 'bakery', 'xerox'],
       required: [true, 'Shop category is required'],
     },
     description: {

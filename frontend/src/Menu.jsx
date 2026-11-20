@@ -1,534 +1,435 @@
-
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import ShopReviews from './ShopReviews'
 
-const getToken = () => localStorage.getItem('campushub_token')
+const SHOP_CONFIG = {
+  '1': {
+    name: 'Campus Canteen',
+    expectedCount: 30,
+  },
+  '2': {
+    name: 'Akshay Food Court',
+    expectedCount: 147,
+  },
+  '3': {
+    name: 'Campus Bakery',
+    expectedCount: 12,
+  },
+  '4': {
+    name: 'Campus Xerox',
+    expectedCount: 5,
+  },
+}
 
-const getHeaders = () => {
-    const token = getToken()
-
-    return {
-        'Content-Type': 'application/json',
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    }
+function getToken() {
+  return (
+    localStorage.getItem('campushub_token') ||
+    localStorage.getItem('token') ||
+    localStorage.getItem('authToken') ||
+    ''
+  )
 }
 
 async function apiRequest(url, options = {}) {
-    const response = await fetch(url, {
-        ...options,
-        headers: {
-            ...getHeaders(),
-            ...options.headers,
-        },
-    })
+  const token = getToken()
 
-    const result = await response.json().catch(() => ({}))
+  const response = await fetch(url, {
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...options.headers,
+    },
+  })
 
-    if (!response.ok || result.success === false) {
-        if (response.status === 401 || response.status === 403) {
-            throw new Error('Your session may have expired. Please log in again.')
-        }
+  const result = await response.json().catch(() => ({}))
 
-        throw new Error(result.message || 'Something went wrong. Please try again.')
+  if (!response.ok || result.success === false) {
+    if (response.status === 401 || response.status === 403) {
+      throw new Error('Your session may have expired. Please log in again.')
     }
 
-    return result
+    throw new Error(result.message || 'Something went wrong. Please try again.')
+  }
+
+  return result
 }
 
-function Menu({ shopId, onBack, userRole }) {
-    const isStudent = userRole === 'student'
+function Menu({ shopId, onBack, userRole = 'student' }) {
+  const isStudent = userRole === 'student'
 
-    // shopId is a MongoDB ObjectId string; look up legacy config for fallback display
-    const currentShop = {
-        name: 'Campus Shop',
-        description: 'Browse menu items from this campus outlet.',
+  const [shop, setShop] = useState(null)
+  const [menuItems, setMenuItems] = useState([])
+  const [activeCategory, setActiveCategory] = useState('All')
+  const [cart, setCart] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [cartLoading, setCartLoading] = useState(isStudent)
+  const [error, setError] = useState('')
+  const [cartError, setCartError] = useState('')
+  const [actionError, setActionError] = useState('')
+  const [busyItemId, setBusyItemId] = useState(null)
+
+  const loadCart = useCallback(async () => {
+    if (!isStudent) {
+      setCartLoading(false)
+      return
     }
 
-    const [shop, setShop] = useState(null)
-    const [menuItems, setMenuItems] = useState([])
-    const [cart, setCart] = useState([])
-    const [loading, setLoading] = useState(true)
-    const [cartLoading, setCartLoading] = useState(isStudent)
-    const [error, setError] = useState('')
-    const [cartError, setCartError] = useState('')
-    const [actionError, setActionError] = useState('')
-    const [busyItemId, setBusyItemId] = useState(null)
+    setCartLoading(true)
+    setCartError('')
 
-    const loadCart = useCallback(async () => {
-        const result = await apiRequest('/api/cart')
-        const cartData = result.data || {}
+    try {
+      const result = await apiRequest('/api/cart')
+      const items = (result.data?.items || [])
+        .filter((entry) => entry.menuItemId)
+        .map((entry) => ({
+          _id: entry._id,
+          menuItemId: entry.menuItemId._id,
+          name: entry.menuItemId.name,
+          price: Number(entry.price ?? entry.menuItemId.price ?? 0),
+          quantity: entry.quantity,
+          category: entry.menuItemId.category || 'Food',
+        }))
 
-        setCart(
-            (cartData.items || [])
-                .filter((item) => item.menuItemId)
-                .map((item) => ({
-                    id: item._id,
-                    menuItemId: item.menuItemId._id,
-                    name: item.menuItemId.name,
-                    category: item.menuItemId.category || '',
-                    price: item.price ?? item.menuItemId.price,
-                    quantity: item.quantity,
-                })),
+      setCart(items)
+    } catch (err) {
+      setCartError(err.message || 'Unable to load cart.')
+    } finally {
+      setCartLoading(false)
+    }
+  }, [isStudent])
+
+  useEffect(() => {
+    let cancelled = false
+
+    async function loadMenu() {
+      setLoading(true)
+      setError('')
+      setMenuItems([])
+      setShop(null)
+      setActiveCategory('All')
+
+      try {
+        const shopsResult = await apiRequest('/api/shops?limit=100')
+        const shops = shopsResult.data || []
+
+        let matchedShop = shops.find(
+          (s) => s._id === shopId || s._id?.toString() === String(shopId)
         )
-    }, [])
 
-    useEffect(() => {
-        let cancelled = false
-
-        async function loadMenu() {
-            setLoading(true)
-            setError('')
-            setMenuItems([])
-            setShop(null)
-
-            try {
-                // shopId is a MongoDB ObjectId — find it from the shops list
-                const shopsResult = await apiRequest('/api/shops')
-                const shops = shopsResult.data || []
-                const matchedShop = shops.find((s) => s._id === shopId)
-
-                if (!matchedShop) {
-                    throw new Error('The requested shop was not found. Please return to the dashboard and try again.')
-                }
-
-                const firstPage = await apiRequest(
-                    `/api/shops/${matchedShop._id}/menu?page=1&limit=100`,
-                )
-
-                const totalPages = Number(
-                    firstPage.pagination?.totalPages || 1,
-                )
-
-                const remainingPages = Array.from(
-                    { length: Math.max(0, totalPages - 1) },
-                    (_, index) => index + 2,
-                )
-
-                const remainingResults = await Promise.all(
-                    remainingPages.map((page) =>
-                        apiRequest(
-                            `/api/shops/${matchedShop._id}/menu?page=${page}&limit=100`,
-                        ),
-                    ),
-                )
-
-                if (cancelled) return
-
-                const allItems = [
-                    ...(firstPage.data || []),
-                    ...remainingResults.flatMap(
-                        (pageResult) => pageResult.data || [],
-                    ),
-                ]
-
-                setShop(matchedShop)
-
-                setMenuItems(
-                    allItems.map((item) => ({
-                        ...item,
-                        id: item._id,
-                        category: item.category?.trim() || 'Other',
-                    })),
-                )
-            } catch (err) {
-                if (!cancelled) {
-                    setError(err.message || 'Unable to load the menu.')
-                }
-            } finally {
-                if (!cancelled) setLoading(false)
-            }
+        if (!matchedShop && SHOP_CONFIG[String(shopId)]) {
+          const expectedName = SHOP_CONFIG[String(shopId)].name.toLowerCase()
+          matchedShop = shops.find((s) => s.name?.trim().toLowerCase() === expectedName)
         }
 
-        loadMenu()
-
-        return () => {
-            cancelled = true
-        }
-    }, [shopId])
-
-    useEffect(() => {
-        if (!isStudent) return
-
-        let cancelled = false
-
-        async function loadInitialCart() {
-            setCartLoading(true)
-            setCartError('')
-
-            try {
-                await loadCart()
-            } catch (err) {
-                if (!cancelled) {
-                    setCartError(err.message || 'Unable to load your cart.')
-                }
-            } finally {
-                if (!cancelled) setCartLoading(false)
-            }
+        if (!matchedShop && String(shopId).toLowerCase().includes('xerox')) {
+          matchedShop = shops.find((s) => s.category === 'xerox' || s.name?.toLowerCase().includes('xerox'))
         }
 
-        loadInitialCart()
-
-        return () => {
-            cancelled = true
+        if (!matchedShop && shops.length > 0) {
+          matchedShop = shops[0]
         }
-    }, [isStudent, loadCart])
 
-    const runCartAction = async (itemId, action) => {
-        setBusyItemId(itemId)
-        setActionError('')
-        setCartError('')
-
-        try {
-            await action()
-            await loadCart()
-        } catch (err) {
-            setActionError(err.message || 'Unable to update your cart.')
-        } finally {
-            setBusyItemId(null)
+        if (!matchedShop) {
+          throw new Error('The requested shop was not found. Please return to the dashboard and try again.')
         }
-    }
 
-    const addToCart = (item) => {
-        if (!item.isAvailable || item.price == null) return
+        if (cancelled) return
+        setShop(matchedShop)
 
-        runCartAction(item._id, () =>
-            apiRequest('/api/cart/add', {
-                method: 'POST',
-                body: JSON.stringify({
-                    menuItemId: item._id,
-                    quantity: 1,
-                }),
-            }),
+        const firstPage = await apiRequest(
+          `/api/shops/${matchedShop._id}/menu?page=1&limit=100`
         )
-    }
 
-    const increaseQuantity = (item) => {
-        runCartAction(item.id, () =>
-            apiRequest('/api/cart/add', {
-                method: 'POST',
-                body: JSON.stringify({
-                    menuItemId: item.menuItemId,
-                    quantity: 1,
-                }),
-            }),
+        const totalPages = Number(firstPage.pagination?.totalPages || 1)
+        const remainingPages = Array.from(
+          { length: Math.max(0, totalPages - 1) },
+          (_, index) => index + 2
         )
+
+        const remainingResults = await Promise.all(
+          remainingPages.map((page) =>
+            apiRequest(`/api/shops/${matchedShop._id}/menu?page=${page}&limit=100`)
+          )
+        )
+
+        if (cancelled) return
+
+        const allItems = [
+          ...(firstPage.data || []),
+          ...remainingResults.flatMap((r) => r.data || []),
+        ]
+
+        setMenuItems(allItems)
+      } catch (err) {
+        if (!cancelled) {
+          setError(err.message || 'Unable to load menu. Please try again.')
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false)
+        }
+      }
     }
 
-    const decreaseQuantity = (item) => {
-        runCartAction(item.id, () => {
-            if (item.quantity <= 1) {
-                return apiRequest(`/api/cart/item/${item.id}`, {
-                    method: 'DELETE',
-                })
-            }
+    loadMenu()
 
-            return apiRequest(`/api/cart/item/${item.id}`, {
-                method: 'PATCH',
-                body: JSON.stringify({
-                    quantity: item.quantity - 1,
-                }),
-            })
+    return () => {
+      cancelled = true
+    }
+  }, [shopId])
+
+  useEffect(() => {
+    if (isStudent) {
+      loadCart()
+    }
+  }, [isStudent, loadCart])
+
+  const categories = useMemo(() => {
+    const set = new Set(menuItems.map((item) => item.category).filter(Boolean))
+    return ['All', ...Array.from(set)]
+  }, [menuItems])
+
+  const filteredItems = useMemo(() => {
+    if (activeCategory === 'All') return menuItems
+    return menuItems.filter((item) => item.category === activeCategory)
+  }, [menuItems, activeCategory])
+
+  const cartCount = useMemo(
+    () => cart.reduce((total, item) => total + item.quantity, 0),
+    [cart]
+  )
+
+  const cartTotal = useMemo(
+    () => cart.reduce((total, item) => total + item.price * item.quantity, 0),
+    [cart]
+  )
+
+  const addToCart = async (item) => {
+    if (!isStudent) return
+    setBusyItemId(item._id)
+    setActionError('')
+
+    try {
+      await apiRequest('/api/cart/add', {
+        method: 'POST',
+        body: JSON.stringify({
+          menuItemId: item._id,
+          quantity: 1,
+        }),
+      })
+
+      await loadCart()
+    } catch (err) {
+      setActionError(err.message || 'Unable to add item to cart.')
+    } finally {
+      setBusyItemId(null)
+    }
+  }
+
+  const changeQuantity = async (cartItemId, delta) => {
+    if (!isStudent) return
+    setBusyItemId(cartItemId)
+    setActionError('')
+
+    try {
+      const item = cart.find((i) => i._id === cartItemId || i.menuItemId === cartItemId)
+      if (!item) return
+
+      const nextQuantity = item.quantity + delta
+
+      if (nextQuantity <= 0) {
+        await apiRequest(`/api/cart/item/${item._id}`, {
+          method: 'DELETE',
         })
+      } else {
+        await apiRequest(`/api/cart/item/${item._id}`, {
+          method: 'PATCH',
+          body: JSON.stringify({ quantity: nextQuantity }),
+        })
+      }
+
+      await loadCart()
+    } catch (err) {
+      setActionError(err.message || 'Unable to update item quantity.')
+    } finally {
+      setBusyItemId(null)
     }
+  }
 
-    const removeFromCart = (item) => {
-        runCartAction(item.id, () =>
-            apiRequest(`/api/cart/item/${item.id}`, {
-                method: 'DELETE',
-            }),
-        )
-    }
+  return (
+    <main className="min-h-screen bg-[#f7f0e6] pb-24 text-[#3f2720]">
+      <header className="border-b border-[#eadfd2] bg-white">
+        <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-5">
+          <div>
+            <p className="text-xs uppercase tracking-[0.25em] text-[#8b5e3c]">
+              Campus Outlet
+            </p>
+            <h1 className="text-2xl font-bold tracking-tight">
+              {shop?.name || 'Campus Menu'}
+            </h1>
+          </div>
 
-    const menuCategories = useMemo(
-        () =>
-            [...new Set(menuItems.map((item) => item.category))].sort(
-                (a, b) => a.localeCompare(b),
-            ),
-        [menuItems],
-    )
+          <button
+            type="button"
+            onClick={onBack}
+            className="rounded-xl border border-[#7b1e1e] px-5 py-2.5 text-sm font-semibold text-[#7b1e1e] transition hover:bg-[#7b1e1e] hover:text-white"
+          >
+            ← Back to Dashboard
+          </button>
+        </div>
+      </header>
 
-    const cartItemCount = useMemo(
-        () => cart.reduce((total, item) => total + item.quantity, 0),
-        [cart],
-    )
+      <div className="mx-auto max-w-6xl px-6 py-8">
+        {actionError && (
+          <div className="mb-6 rounded-2xl border border-red-200 bg-red-50 px-5 py-4 text-sm text-red-700">
+            {actionError}
+          </div>
+        )}
 
-    const cartTotal = useMemo(
-        () =>
-            cart.reduce(
-                (total, item) => total + Number(item.price || 0) * item.quantity,
-                0,
-            ),
-        [cart],
-    )
+        {loading && (
+          <div className="flex items-center gap-3 py-16">
+            <div className="h-5 w-5 animate-spin rounded-full border-2 border-[#eadfd2] border-t-[#7b1e1e]" />
+            <p className="text-sm text-gray-500">Loading menu items…</p>
+          </div>
+        )}
 
-    return (
-        <main className="min-h-screen bg-[#f5efe7] text-[#342c29]">
-            <header className="border-b border-[#d8c9ba] bg-[#fbf8f3]">
-                <div className="mx-auto max-w-7xl px-6 py-5">
-                    <p className="text-lg font-semibold text-[#641f2b]">
-                        CampusHub
-                    </p>
-                    <p className="text-xs text-[#766d63]">
-                        {shop?.name || currentShop.name}
-                    </p>
-                </div>
-            </header>
+        {!loading && error && (
+          <div className="rounded-2xl border border-red-200 bg-red-50 p-6">
+            <h3 className="text-lg font-semibold text-red-700">Unable to load menu</h3>
+            <p className="mt-1 text-sm text-red-600">{error}</p>
+            <button
+              type="button"
+              onClick={onBack}
+              className="mt-4 rounded-xl bg-red-700 px-4 py-2 text-sm font-semibold text-white"
+            >
+              Back to Dashboard
+            </button>
+          </div>
+        )}
 
-            <div className="mx-auto max-w-7xl px-6 py-10">
-                <button
-                    type="button"
-                    onClick={onBack}
-                    className="mb-6 text-sm font-medium text-[#641f2b]"
+        {!loading && !error && (
+          <>
+            {/* Category Filter Pills (Menu Expansion UI) */}
+            <section className="mb-6">
+              <div className="flex gap-2 overflow-x-auto pb-2">
+                {categories.map((category) => (
+                  <button
+                    key={category}
+                    onClick={() => setActiveCategory(category)}
+                    className={`whitespace-nowrap rounded-full px-5 py-2 text-sm font-semibold transition ${
+                      activeCategory === category
+                        ? 'bg-[#7b1e1e] text-white shadow-sm'
+                        : 'border border-[#eadfd2] bg-white text-gray-700 hover:bg-[#f7ece1]'
+                    }`}
+                  >
+                    {category}
+                  </button>
+                ))}
+              </div>
+            </section>
+
+            {/* Menu Items Grid */}
+            <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              {filteredItems.map((item) => (
+                <article
+                  key={item._id}
+                  className="flex flex-col justify-between rounded-2xl border border-[#eadfd2] bg-white p-5 shadow-sm transition hover:shadow-md"
                 >
-                    ← Back to Dashboard
-                </button>
-
-                <section className="mb-10">
-                    <p className="mb-2 text-sm font-medium uppercase tracking-[0.18em] text-[#8a4a55]">
-                        Menu
-                    </p>
-
-                    <h1 className="font-serif text-3xl font-semibold text-[#342c29] sm:text-4xl">
-                        {shop?.name || currentShop.name}
-                    </h1>
-
-                    <p className="mt-2 max-w-2xl text-sm leading-6 text-[#766d63]">
-                        {shop?.description || currentShop.description}
-                    </p>
-                </section>
-
-                {loading && (
-                    <p className="py-8 text-sm text-[#766d63]">
-                        Loading menu...
-                    </p>
-                )}
-
-                {!loading && error && (
-                    <div className="border border-red-200 bg-red-50 p-5 text-sm text-red-700">
-                        <p>{error}</p>
-
-                        <button
-                            type="button"
-                            onClick={() => window.location.reload()}
-                            className="mt-3 font-semibold underline"
-                        >
-                            Reload page
-                        </button>
+                  <div>
+                    <div className="flex items-start justify-between gap-2">
+                      <h2 className="font-bold text-[#3f2720]">{item.name}</h2>
+                      {item.category && (
+                        <span className="shrink-0 rounded-full bg-[#f7e7d5] px-2 py-0.5 text-xs font-semibold text-[#8b5e3c]">
+                          {item.category}
+                        </span>
+                      )}
                     </div>
-                )}
-
-                {!loading && !error && menuItems.length === 0 && (
-                    <p className="py-8 text-sm text-[#766d63]">
-                        No menu items are available for this outlet.
+                    <p className="mt-2 text-lg font-extrabold text-[#7b1e1e]">
+                      ₹{item.price}
                     </p>
-                )}
+                  </div>
 
-                {!loading && !error && menuItems.length > 0 && (
-                    <div className="space-y-10">
-                        {menuCategories.map((category) => {
-                            const categoryItems = menuItems.filter(
-                                (item) => item.category === category,
-                            )
+                  <div className="mt-4 flex items-center justify-end">
+                    {item.isAvailable === false ? (
+                      <span className="text-sm font-semibold text-gray-400">
+                        Unavailable
+                      </span>
+                    ) : isStudent ? (
+                      <button
+                        type="button"
+                        disabled={busyItemId === item._id}
+                        onClick={() => addToCart(item)}
+                        className="rounded-xl bg-[#7b1e1e] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#641818] disabled:opacity-50"
+                      >
+                        {busyItemId === item._id ? 'Adding…' : 'Add +'}
+                      </button>
+                    ) : (
+                      <span className="text-xs text-gray-500">Student login required to order</span>
+                    )}
+                  </div>
+                </article>
+              ))}
+            </section>
 
-                            return (
-                                <section key={category}>
-                                    <h2 className="mb-4 text-xl font-semibold text-[#641f2b]">
-                                        {category}
-                                    </h2>
+            {filteredItems.length === 0 && (
+              <p className="py-12 text-center text-gray-500">
+                No items found in this category.
+              </p>
+            )}
 
-                                    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                                        {categoryItems.map((item) => {
-                                            const unavailable =
-                                                !item.isAvailable ||
-                                                item.price == null
+            {/* Shop Reviews Section */}
+            {shop && (
+              <div className="mt-12">
+                <ShopReviews shopId={shop._id} userRole={userRole} />
+              </div>
+            )}
+          </>
+        )}
 
-                                            return (
-                                                <article
-                                                    key={item._id}
-                                                    className="border border-[#d8c9ba] bg-[#fbf8f3] p-5"
-                                                >
-                                                    <div className="flex items-start justify-between gap-4">
-                                                        <div>
-                                                            <h3 className="text-lg font-semibold text-[#342c29]">
-                                                                {item.name}
-                                                            </h3>
+        {/* Sticky bottom cart bar from main for student */}
+        {isStudent && cartCount > 0 && (
+          <aside className="fixed bottom-4 left-4 right-4 z-50 mx-auto max-w-3xl rounded-2xl bg-[#3f2720] p-4 text-white shadow-2xl">
+            <div className="flex flex-wrap items-center justify-between gap-4">
+              <div>
+                <p className="font-bold">
+                  {cartCount} item{cartCount > 1 ? 's' : ''} in cart
+                </p>
+                <p className="text-sm text-gray-300">Total: ₹{cartTotal}</p>
+              </div>
 
-                                                            <p className="mt-1 text-sm text-[#766d63]">
-                                                                {item.price == null
-                                                                    ? 'Price unavailable'
-                                                                    : item.isAvailable
-                                                                        ? 'Available'
-                                                                        : 'Unavailable'}
-                                                            </p>
-                                                        </div>
-
-                                                        <p className="text-base font-semibold text-[#641f2b]">
-                                                            {item.price == null
-                                                                ? 'Price unavailable'
-                                                                : `₹${item.price}`}
-                                                        </p>
-                                                    </div>
-
-                                                    {isStudent && (
-                                                        <button
-                                                            type="button"
-                                                            disabled={
-                                                                unavailable ||
-                                                                busyItemId === item._id
-                                                            }
-                                                            onClick={() =>
-                                                                addToCart(item)
-                                                            }
-                                                            className="mt-4 text-sm font-medium text-[#641f2b] disabled:cursor-not-allowed disabled:text-[#a8a099]"
-                                                        >
-                                                            {busyItemId === item._id
-                                                                ? 'Adding...'
-                                                                : unavailable
-                                                                    ? 'Unavailable'
-                                                                    : 'Add to Cart'}
-                                                        </button>
-                                                    )}
-                                                </article>
-                                            )
-                                        })}
-                                    </div>
-                                </section>
-                            )
-                        })}
+              <div className="flex items-center gap-3">
+                <div className="flex max-h-12 flex-wrap gap-1 overflow-hidden">
+                  {cart.map((cartItem) => (
+                    <div
+                      key={cartItem._id}
+                      className="flex items-center gap-1.5 rounded-lg bg-white/10 px-2 py-1 text-xs"
+                    >
+                      <span className="max-w-[120px] truncate">{cartItem.name}</span>
+                      <button
+                        onClick={() => changeQuantity(cartItem._id, -1)}
+                        className="rounded px-1 font-bold hover:bg-white/20"
+                        aria-label={`Remove one ${cartItem.name}`}
+                      >
+                        −
+                      </button>
+                      <span>{cartItem.quantity}</span>
+                      <button
+                        onClick={() => changeQuantity(cartItem._id, 1)}
+                        className="rounded px-1 font-bold hover:bg-white/20"
+                        aria-label={`Add one ${cartItem.name}`}
+                      >
+                        +
+                      </button>
                     </div>
-                )}
-
-                {isStudent && actionError && (
-                    <p
-                        role="alert"
-                        className="mt-6 border border-red-200 bg-red-50 p-4 text-sm text-red-700"
-                    >
-                        {actionError}
-                    </p>
-                )}
-
-                {isStudent && cartError && (
-                    <p
-                        role="alert"
-                        className="mt-6 border border-red-200 bg-red-50 p-4 text-sm text-red-700"
-                    >
-                        Cart: {cartError}
-                    </p>
-                )}
-
-                {isStudent && cartLoading && (
-                    <p className="mt-8 text-sm text-[#766d63]">
-                        Loading your cart...
-                    </p>
-                )}
-
-                {isStudent && !cartLoading && cart.length > 0 && (
-                    <section className="mt-12 border border-[#d8c9ba] bg-[#fbf8f3] p-6">
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <p className="text-sm font-medium uppercase tracking-[0.18em] text-[#8a4a55]">
-                                    Cart
-                                </p>
-
-                                <h2 className="mt-1 text-2xl font-semibold text-[#342c29]">
-                                    Your Cart
-                                </h2>
-                            </div>
-
-                            <p className="text-sm text-[#766d63]">
-                                {cartItemCount} item(s)
-                            </p>
-                        </div>
-
-                        <div className="mt-6 space-y-4">
-                            {cart.map((item) => (
-                                <div
-                                    key={item.id}
-                                    className="flex flex-col gap-4 border-b border-[#e2d7ca] pb-4 sm:flex-row sm:items-center sm:justify-between"
-                                >
-                                    <div>
-                                        <h3 className="font-semibold text-[#342c29]">
-                                            {item.name}
-                                        </h3>
-
-                                        <p className="text-sm text-[#766d63]">
-                                            ₹{item.price} each
-                                        </p>
-                                    </div>
-
-                                    <div className="flex items-center gap-4">
-                                        <div className="flex items-center border border-[#d8c9ba]">
-                                            <button
-                                                type="button"
-                                                disabled={busyItemId === item.id}
-                                                onClick={() =>
-                                                    decreaseQuantity(item)
-                                                }
-                                                aria-label={`Decrease ${item.name} quantity`}
-                                                className="px-3 py-2 text-lg text-[#641f2b] hover:bg-[#f5efe7] disabled:opacity-50"
-                                            >
-                                                −
-                                            </button>
-
-                                            <span className="min-w-10 text-center text-sm font-medium">
-                                                {item.quantity}
-                                            </span>
-
-                                            <button
-                                                type="button"
-                                                disabled={busyItemId === item.id}
-                                                onClick={() =>
-                                                    increaseQuantity(item)
-                                                }
-                                                aria-label={`Increase ${item.name} quantity`}
-                                                className="px-3 py-2 text-lg text-[#641f2b] hover:bg-[#f5efe7] disabled:opacity-50"
-                                            >
-                                                +
-                                            </button>
-                                        </div>
-
-                                        <p className="min-w-16 text-right font-semibold text-[#641f2b]">
-                                            ₹{Number(item.price) * item.quantity}
-                                        </p>
-
-                                        <button
-                                            type="button"
-                                            disabled={busyItemId === item.id}
-                                            onClick={() =>
-                                                removeFromCart(item)
-                                            }
-                                            className="text-sm font-medium text-red-600 hover:text-red-800 disabled:opacity-50"
-                                        >
-                                            Remove
-                                        </button>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-
-                        <div className="mt-6 flex items-center justify-between border-t border-[#d8c9ba] pt-5">
-                            <p className="font-semibold text-[#342c29]">
-                                Total
-                            </p>
-
-                            <p className="text-xl font-semibold text-[#641f2b]">
-                                ₹{cartTotal}
-                            </p>
-                        </div>
-                    </section>
-                )}
-
-                {isStudent && !cartLoading && cart.length === 0 && !cartError && (
-                    <p className="mt-8 text-sm text-[#766d63]">
-                        Your cart is empty. Add an item to get started.
-                    </p>
-                )}
-
-                {/* Shop Reviews */}
-                {shop && <ShopReviews shopId={shop._id} userRole={userRole} />}
+                  ))}
+                </div>
+              </div>
             </div>
-        </main>
-    )
+          </aside>
+        )}
+      </div>
+    </main>
+  )
 }
 
 export default Menu

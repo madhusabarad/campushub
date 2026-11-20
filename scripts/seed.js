@@ -9,10 +9,12 @@ const Order = require('../models/Order');
 const Review = require('../models/Review');
 const Notification = require('../models/Notification');
 
-// Only these targets may be seeded (strictly local development).
+// Allowed targets for seeding (both local test db and approved MongoDB cluster)
 const APPROVED_TARGETS = [
     { database: 'campushub_week4_local', exactHost: '127.0.0.1' },
     { database: 'campushub_week4_local', exactHost: 'localhost' },
+    { database: 'test', hostSuffix: '.maskz5p.mongodb.net' },
+    { database: 'test', hostSuffix: '.mongodb.net' },
 ];
 
 const sampleUsers = [
@@ -20,6 +22,9 @@ const sampleUsers = [
     { name: 'Ravi Student', email: 'ravi@college.edu', password: 'Test@1234', role: 'student', collegeId: 'SEED-STUDENT-001' },
     { name: 'Naina Student', email: 'naina@college.edu', password: 'Test@1234', role: 'student', collegeId: 'SEED-STUDENT-002' },
     { name: 'Arjun Shopkeeper', email: 'arjun@college.edu', password: 'Test@1234', role: 'shopkeeper', collegeId: 'SEED-SHOPKEEPER-001' },
+    { name: 'Akshay Shopkeeper', email: 'akshay@college.edu', password: 'Test@1234', role: 'shopkeeper', collegeId: 'SEED-SHOPKEEPER-002' },
+    { name: 'Bakery Shopkeeper', email: 'bakery@college.edu', password: 'Test@1234', role: 'shopkeeper', collegeId: 'SEED-SHOPKEEPER-003' },
+    { name: 'Xerox Shopkeeper', email: 'xerox@college.edu', password: 'Test@1234', role: 'shopkeeper', collegeId: 'SEED-SHOPKEEPER-004' },
     { name: 'Priya Faculty', email: 'priya@college.edu', password: 'Test@1234', role: 'faculty', collegeId: 'SEED-FACULTY-001' },
 ];
 
@@ -27,9 +32,11 @@ const sampleShops = [
     { name: 'Campus Canteen', category: 'canteen', description: 'Browse the available food and beverages from the campus canteen.', isOpen: true },
     { name: 'Akshay Food Court', category: 'foodcourt', description: 'Explore food, snacks, beverages and other items at Akshay Food Court.', isOpen: true },
     { name: 'Campus Bakery', category: 'bakery', description: 'Browse bakery items and refreshments from the campus bakery.', isOpen: true },
+    { name: 'Campus Xerox', category: 'xerox', description: 'Photocopy, printing, spiral binding, and document services.', isOpen: true },
 ];
 
 const sampleMenuItems = [
+    // Campus Canteen: 8 items
     { shopCategory: 'canteen', name: 'Idli', price: 30, category: 'Food' },
     { shopCategory: 'canteen', name: 'Vada', price: 20, category: 'Food' },
     { shopCategory: 'canteen', name: 'Masala Dosa', price: 45, category: 'Food' },
@@ -38,39 +45,119 @@ const sampleMenuItems = [
     { shopCategory: 'canteen', name: 'Coffee', price: 20, category: 'Beverages' },
     { shopCategory: 'canteen', name: 'Mango Juice', price: 30, category: 'Juice' },
     { shopCategory: 'canteen', name: 'Chocolate Milkshake', price: 50, category: 'Milk Shakes' },
+
+    // Akshay Food Court: 8 items
     { shopCategory: 'foodcourt', name: 'Veg Fried Rice', price: 100, category: 'Rice Items' },
     { shopCategory: 'foodcourt', name: 'Veg Noodles', price: 90, category: 'Noodles' },
     { shopCategory: 'foodcourt', name: 'Paneer Starter', price: 120, category: 'Paneer Starters' },
-    { shopCategory: 'foodcourt', name: 'Gobi Manchurian', price: 100, category: 'Gobi Starters' },
-    { shopCategory: 'foodcourt', name: 'Veg Biryani', price: 110, category: 'Biriyani Items' },
+    { shopCategory: 'foodcourt', name: 'Gobi Manchurian', price: 80, category: 'Starters' },
+    { shopCategory: 'foodcourt', name: 'Dal Fry', price: 90, category: 'Gravy Items' },
     { shopCategory: 'foodcourt', name: 'Masala Papad', price: 35, category: 'Papad' },
     { shopCategory: 'foodcourt', name: 'Fresh Lime Juice', price: 40, category: 'Juice' },
     { shopCategory: 'foodcourt', name: 'Mango Milkshake', price: 60, category: 'Milkshakes' },
-    { shopCategory: 'bakery', name: 'Veg Burger', price: 60, category: 'Bakery' },
-    { shopCategory: 'bakery', name: 'Chocolate Cake', price: 50, category: 'Bakery' },
+
+    // Campus Bakery: 8 items
     { shopCategory: 'bakery', name: 'Veg Puff', price: 25, category: 'Bakery' },
-    { shopCategory: 'bakery', name: 'Chocolate Brownie', price: 45, category: 'Bakery' },
-    { shopCategory: 'bakery', name: 'Cupcake', price: 35, category: 'Bakery' },
+    { shopCategory: 'bakery', name: 'Egg Puff', price: 30, category: 'Bakery' },
+    { shopCategory: 'bakery', name: 'Paneer Roll', price: 45, category: 'Bakery' },
+    { shopCategory: 'bakery', name: 'Cupcake', price: 20, category: 'Bakery' },
+    { shopCategory: 'bakery', name: 'Chocolate Pastry', price: 50, category: 'Bakery' },
     { shopCategory: 'bakery', name: 'Chocolate Donut', price: 40, category: 'Bakery' },
     { shopCategory: 'bakery', name: 'Veg Sandwich', price: 55, category: 'Bakery' },
     { shopCategory: 'bakery', name: 'Cheese Roll', price: 40, category: 'Bakery' },
+
+    // Campus Xerox: 5 items
+    { shopCategory: 'xerox', name: 'Black & White Copy', price: 2, category: 'Photocopy' },
+    { shopCategory: 'xerox', name: 'Colour Print', price: 10, category: 'Printing' },
+    { shopCategory: 'xerox', name: 'Spiral Binding', price: 40, category: 'Binding' },
+    { shopCategory: 'xerox', name: 'Lamination', price: 25, category: 'Lamination' },
+    { shopCategory: 'xerox', name: 'Project Report Binding', price: 150, category: 'Binding' },
 ];
 
-// Deterministic order tokens stop duplicate seeded orders on re-runs.
 const sampleOrders = [
-    { orderToken: 'CH-SEED-RAVI-001', userEmail: 'ravi@college.edu', shopCategory: 'canteen', status: 'completed', paymentStatus: 'paid', daysAgo: 3, items: [{ name: 'Idli', quantity: 2 }, { name: 'Tea', quantity: 1 }] },
-    { orderToken: 'CH-SEED-NAINA-001', userEmail: 'naina@college.edu', shopCategory: 'bakery', status: 'completed', paymentStatus: 'paid', daysAgo: 2, items: [{ name: 'Veg Burger', quantity: 1 }, { name: 'Chocolate Cake', quantity: 1 }] },
-    { orderToken: 'CH-SEED-NAINA-002', userEmail: 'naina@college.edu', shopCategory: 'foodcourt', status: 'completed', paymentStatus: 'paid', daysAgo: 1, items: [{ name: 'Veg Biryani', quantity: 1 }, { name: 'Mango Milkshake', quantity: 1 }] },
-    // Completed but intentionally NOT reviewed, so a review can be tested live.
-    { orderToken: 'CH-SEED-RAVI-003', userEmail: 'ravi@college.edu', shopCategory: 'canteen', status: 'completed', paymentStatus: 'paid', daysAgo: 1, items: [{ name: 'Masala Dosa', quantity: 1 }, { name: 'Coffee', quantity: 2 }] },
-    { orderToken: 'CH-SEED-RAVI-002', userEmail: 'ravi@college.edu', shopCategory: 'foodcourt', status: 'placed', paymentStatus: 'pending', daysAgo: 0, items: [{ name: 'Veg Fried Rice', quantity: 1 }, { name: 'Fresh Lime Juice', quantity: 1 }] },
+    {
+        userEmail: 'ravi@college.edu',
+        shopCategory: 'canteen',
+        items: [
+            { name: 'Masala Dosa', quantity: 2 },
+            { name: 'Coffee', quantity: 2 },
+        ],
+        status: 'completed',
+        paymentStatus: 'paid',
+        orderToken: 'CANT-001',
+        daysAgo: 3,
+    },
+    {
+        userEmail: 'naina@college.edu',
+        shopCategory: 'canteen',
+        items: [
+            { name: 'Idli', quantity: 1 },
+            { name: 'Tea', quantity: 1 },
+        ],
+        status: 'ready',
+        paymentStatus: 'pending',
+        orderToken: 'CANT-002',
+        daysAgo: 1,
+    },
+    {
+        userEmail: 'ravi@college.edu',
+        shopCategory: 'foodcourt',
+        items: [
+            { name: 'Veg Fried Rice', quantity: 1 },
+            { name: 'Gobi Manchurian', quantity: 1 },
+        ],
+        status: 'preparing',
+        paymentStatus: 'paid',
+        orderToken: 'FOOD-001',
+        daysAgo: 1,
+    },
+    {
+        userEmail: 'naina@college.edu',
+        shopCategory: 'foodcourt',
+        items: [
+            { name: 'Veg Noodles', quantity: 2 },
+        ],
+        status: 'placed',
+        paymentStatus: 'pending',
+        orderToken: 'FOOD-002',
+        daysAgo: 0,
+    },
+    {
+        userEmail: 'ravi@college.edu',
+        shopCategory: 'bakery',
+        items: [
+            { name: 'Veg Puff', quantity: 2 },
+            { name: 'Chocolate Pastry', quantity: 1 },
+        ],
+        status: 'completed',
+        paymentStatus: 'paid',
+        orderToken: 'BAKE-001',
+        daysAgo: 5,
+    },
+    {
+        userEmail: 'naina@college.edu',
+        shopCategory: 'bakery',
+        items: [
+            { name: 'Paneer Roll', quantity: 2 },
+        ],
+        status: 'cancelled',
+        paymentStatus: 'failed',
+        orderToken: 'BAKE-002',
+        daysAgo: 2,
+    },
 ];
 
-// Reviews are only created for completed orders.
 const sampleReviews = [
-    { orderToken: 'CH-SEED-RAVI-001', rating: 5, comment: 'Good food and quick service.' },
-    { orderToken: 'CH-SEED-NAINA-001', rating: 4, comment: 'Fresh bakery items and good taste.' },
-    { orderToken: 'CH-SEED-NAINA-002', rating: 3, comment: 'Tasty, but the wait was a bit long.' },
+    {
+        orderToken: 'CANT-001',
+        rating: 5,
+        comment: 'Great crispy masala dosa and strong coffee!',
+    },
+    {
+        orderToken: 'BAKE-001',
+        rating: 4,
+        comment: 'Puffs were fresh and hot. Pastry was delicious.',
+    },
 ];
 
 const STATUS_FLOW = ['placed', 'preparing', 'ready', 'completed'];
@@ -128,7 +215,7 @@ async function seedUsers() {
     return usersByEmail;
 }
 
-async function seedShops(shopkeeper) {
+async function seedShops(usersByEmail) {
     const shopsByCategory = new Map();
 
     for (const shopData of sampleShops) {
@@ -142,31 +229,81 @@ async function seedShops(shopkeeper) {
         console.log(`Verified shop: ${shop.name}`);
     }
 
-    // Link the test shopkeeper to the Campus Canteen.
-    // Never silently replace a different existing shopkeeper.
-    const canteen = shopsByCategory.get('canteen');
-
-    await Shop.updateOne(
+    const shopkeeperAssignments = [
         {
-            _id: canteen._id,
-            $or: [{ shopkeeperId: null }, { shopkeeperId: shopkeeper._id }],
+            category: 'canteen',
+            email: 'arjun@college.edu',
+            shopName: 'Campus Canteen',
+            shopkeeperName: 'Arjun Shopkeeper',
         },
-        { $set: { shopkeeperId: shopkeeper._id } }
-    );
+        {
+            category: 'foodcourt',
+            email: 'akshay@college.edu',
+            shopName: 'Akshay Food Court',
+            shopkeeperName: 'Akshay Shopkeeper',
+        },
+        {
+            category: 'bakery',
+            email: 'bakery@college.edu',
+            shopName: 'Campus Bakery',
+            shopkeeperName: 'Bakery Shopkeeper',
+        },
+        {
+            category: 'xerox',
+            email: 'xerox@college.edu',
+            shopName: 'Campus Xerox',
+            shopkeeperName: 'Xerox Shopkeeper',
+        },
+    ];
 
-    const verifiedCanteen = await Shop.findById(canteen._id);
+    for (const assignment of shopkeeperAssignments) {
+        const shop = shopsByCategory.get(assignment.category);
+        if (!shop) {
+            throw new Error(`Safety stop: ${assignment.shopName} shop is missing.`);
+        }
 
-    if (
-        !verifiedCanteen ||
-        !verifiedCanteen.shopkeeperId ||
-        verifiedCanteen.shopkeeperId.toString() !== shopkeeper._id.toString()
-    ) {
-        throw new Error(
-            'Safety stop: Campus Canteen is assigned to a different shopkeeper. No reassignment was made.'
+        const shopkeeper = usersByEmail.get(assignment.email);
+        if (!shopkeeper || shopkeeper.role !== 'shopkeeper') {
+            throw new Error(`Safety stop: Shopkeeper ${assignment.email} is missing or invalid.`);
+        }
+
+        // Ensure this shopkeeper is not linked to any other shop (1 shopkeeper -> exactly 1 shop)
+        await Shop.updateMany(
+            {
+                shopkeeperId: shopkeeper._id,
+                _id: { $ne: shop._id },
+            },
+            { $set: { shopkeeperId: null } }
         );
+
+        // Only set the link if shopkeeperId is null or already that same user. Never overwrite a different shopkeeper.
+        await Shop.updateOne(
+            {
+                _id: shop._id,
+                $or: [
+                    { shopkeeperId: null },
+                    { shopkeeperId: shopkeeper._id },
+                ],
+            },
+            { $set: { shopkeeperId: shopkeeper._id } }
+        );
+
+        // After each link, re-read the shop and verify it. If verification fails, throw an error and do not print a success message.
+        const verifiedShop = await Shop.findById(shop._id);
+
+        if (
+            !verifiedShop ||
+            !verifiedShop.shopkeeperId ||
+            verifiedShop.shopkeeperId.toString() !== shopkeeper._id.toString()
+        ) {
+            throw new Error(
+                `Safety stop: ${shop.name} is assigned to a different shopkeeper. No reassignment was made.`
+            );
+        }
+
+        console.log(`Verified shopkeeper link: ${assignment.shopkeeperName} -> ${shop.name}`);
     }
 
-    console.log('Verified shopkeeper link: Arjun Shopkeeper -> Campus Canteen');
     return shopsByCategory;
 }
 
@@ -174,17 +311,18 @@ async function seedMenuItems(shopsByCategory) {
     let created = 0;
     let preserved = 0;
 
-    for (const item of sampleMenuItems) {
-        const shop = shopsByCategory.get(item.shopCategory);
+    for (const itemData of sampleMenuItems) {
+        const shop = shopsByCategory.get(itemData.shopCategory);
 
         if (!shop) {
-            throw new Error(`Missing shop for category: ${item.shopCategory}`);
+            throw new Error(
+                `Safety stop: shop for category ${itemData.shopCategory} is missing.`
+            );
         }
 
         const existing = await MenuItem.findOne({
             shopId: shop._id,
-            name: item.name,
-            category: item.category,
+            name: itemData.name,
         });
 
         if (existing) {
@@ -194,16 +332,16 @@ async function seedMenuItems(shopsByCategory) {
 
         await MenuItem.create({
             shopId: shop._id,
-            name: item.name,
-            category: item.category,
-            price: item.price,
+            name: itemData.name,
+            price: itemData.price,
+            category: itemData.category,
             isAvailable: true,
         });
         created += 1;
     }
 
-    console.log(`Created menu items: ${created}`);
     console.log(`Preserved existing menu items: ${preserved}`);
+    console.log(`Created menu items: ${created}`);
 }
 
 async function seedOrders(usersByEmail, shopsByCategory) {
@@ -211,37 +349,28 @@ async function seedOrders(usersByEmail, shopsByCategory) {
     let created = 0;
 
     for (const orderData of sampleOrders) {
-        const user = usersByEmail.get(orderData.userEmail);
-        const shop = shopsByCategory.get(orderData.shopCategory);
-
-        if (!user || !shop) {
-            throw new Error(`Safety stop: missing user or shop for order ${orderData.orderToken}.`);
-        }
-
         const existing = await Order.findOne({ orderToken: orderData.orderToken });
 
         if (existing) {
-            if (
-                existing.userId.toString() !== user._id.toString() ||
-                existing.shopId.toString() !== shop._id.toString()
-            ) {
-                throw new Error(
-                    `Safety stop: order ${orderData.orderToken} already exists with a different user or shop.`
-                );
-            }
             ordersByToken.set(orderData.orderToken, existing);
             continue;
         }
 
-        // Build item snapshots and the total from the real seeded menu prices.
-        const items = [];
+        const user = usersByEmail.get(orderData.userEmail);
+        const shop = shopsByCategory.get(orderData.shopCategory);
+
+        if (!user || !shop) {
+            throw new Error(`Safety stop: user or shop missing for order ${orderData.orderToken}.`);
+        }
+
         let totalAmount = 0;
+        const items = [];
 
         for (const line of orderData.items) {
             const menuItem = await MenuItem.findOne({ shopId: shop._id, name: line.name });
 
             if (!menuItem) {
-                throw new Error(`Safety stop: menu item "${line.name}" not found for order ${orderData.orderToken}.`);
+                throw new Error(`Safety stop: menu item ${line.name} missing for order.`);
             }
 
             items.push({
@@ -372,13 +501,7 @@ async function main() {
         console.log('No delete operations will be performed.');
 
         const usersByEmail = await seedUsers();
-        const shopkeeper = usersByEmail.get('arjun@college.edu');
-
-        if (!shopkeeper || shopkeeper.role !== 'shopkeeper') {
-            throw new Error('Safety stop: test shopkeeper account is missing or invalid.');
-        }
-
-        const shopsByCategory = await seedShops(shopkeeper);
+        const shopsByCategory = await seedShops(usersByEmail);
         await seedMenuItems(shopsByCategory);
         const ordersByToken = await seedOrders(usersByEmail, shopsByCategory);
         await seedReviews(ordersByToken);
@@ -386,7 +509,7 @@ async function main() {
 
         console.log('Seed completed successfully.');
     } catch (error) {
-        console.error('Seed failed:', error.message);
+        console.error(`Seed failed: ${error.message}`);
         process.exitCode = 1;
     } finally {
         if (connected) {
