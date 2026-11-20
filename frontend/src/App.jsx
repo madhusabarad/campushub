@@ -20,6 +20,7 @@ import ShopkeeperOrders from './ShopkeeperOrders'
 import AdminUsers from './AdminUsers'
 import AdminShops from './AdminShops'
 import AdminOrders from './AdminOrders'
+import AppLayout from './components/AppLayout'
 import { OrderNotificationProvider } from './context/OrderNotificationContext'
 import './App.css'
 
@@ -360,7 +361,42 @@ function LoginPage({ onLogin }) {
 
 function MenuRouteWrapper({ onBack, userRole }) {
   const { shopId } = useParams()
-  return <Menu shopId={shopId} onBack={onBack} userRole={userRole} />
+  return <Menu shopId={shopId || '1'} onBack={onBack} userRole={userRole} />
+}
+
+function StudentLayoutWrapper({ children, currentPage, onLogout }) {
+  const navigate = useNavigate()
+
+  const handleNavigate = (page) => {
+    if (page === 'dashboard') {
+      navigate('/dashboard')
+    } else if (page === 'menu') {
+      navigate('/menu')
+    } else if (page === 'cart') {
+      navigate('/cart')
+    } else if (page === 'xerox') {
+      navigate('/xerox')
+    } else if (page === 'my-orders') {
+      navigate('/my-orders')
+    } else {
+      navigate(`/${page}`)
+    }
+  }
+
+  const handleOpenCart = () => {
+    navigate('/cart')
+  }
+
+  return (
+    <AppLayout
+      currentPage={currentPage}
+      onNavigate={handleNavigate}
+      onLogout={onLogout}
+      onOpenCart={handleOpenCart}
+    >
+      {children}
+    </AppLayout>
+  )
 }
 
 function ProtectedRoute({ children, user, allowedRoles }) {
@@ -450,15 +486,17 @@ function App() {
           path="/dashboard"
           element={
             <ProtectedRoute user={user} allowedRoles={['student']}>
-              <Dashboard
-                onOpenMenu={(shopId) => navigate(`/menu/${shopId}`)}
-                onOpenCart={() => navigate('/cart')}
-                onOpenOrders={() => navigate('/my-orders')}
-                onOpenXerox={() => navigate('/xerox')}
-                onLogout={handleLogout}
-                userRole={role}
-                userName={user?.name || ''}
-              />
+              <StudentLayoutWrapper currentPage="dashboard" onLogout={handleLogout}>
+                <Dashboard
+                  onOpenMenu={(shopId) => navigate(shopId ? `/menu/${shopId}` : '/menu')}
+                  onOpenCart={() => navigate('/cart')}
+                  onOpenOrders={() => navigate('/my-orders')}
+                  onOpenXerox={() => navigate('/xerox')}
+                  onLogout={handleLogout}
+                  userRole={role}
+                  userName={user?.name || ''}
+                />
+              </StudentLayoutWrapper>
             </ProtectedRoute>
           }
         />
@@ -469,13 +507,30 @@ function App() {
         />
 
         <Route
+          path="/menu"
+          element={
+            <ProtectedRoute user={user} allowedRoles={['student']}>
+              <StudentLayoutWrapper currentPage="menu" onLogout={handleLogout}>
+                <Menu
+                  shopId="1"
+                  onBack={() => navigate('/dashboard')}
+                  userRole={role}
+                />
+              </StudentLayoutWrapper>
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
           path="/menu/:shopId"
           element={
             <ProtectedRoute user={user} allowedRoles={['student']}>
-              <MenuRouteWrapper
-                onBack={() => navigate('/dashboard')}
-                userRole={role}
-              />
+              <StudentLayoutWrapper currentPage="menu" onLogout={handleLogout}>
+                <MenuRouteWrapper
+                  onBack={() => navigate('/dashboard')}
+                  userRole={role}
+                />
+              </StudentLayoutWrapper>
             </ProtectedRoute>
           }
         />
@@ -484,7 +539,9 @@ function App() {
           path="/cart"
           element={
             <ProtectedRoute user={user} allowedRoles={['student']}>
-              <Cart onBack={() => navigate('/dashboard')} />
+              <StudentLayoutWrapper currentPage="cart" onLogout={handleLogout}>
+                <Cart onBack={() => navigate('/dashboard')} />
+              </StudentLayoutWrapper>
             </ProtectedRoute>
           }
         />
@@ -493,7 +550,9 @@ function App() {
           path="/my-orders"
           element={
             <ProtectedRoute user={user} allowedRoles={['student']}>
-              <MyOrders onBack={() => navigate('/dashboard')} />
+              <StudentLayoutWrapper currentPage="my-orders" onLogout={handleLogout}>
+                <MyOrders onBack={() => navigate('/dashboard')} />
+              </StudentLayoutWrapper>
             </ProtectedRoute>
           }
         />
@@ -502,7 +561,9 @@ function App() {
           path="/xerox"
           element={
             <ProtectedRoute user={user} allowedRoles={['student']}>
-              <Xerox onBack={() => navigate('/dashboard')} userRole={role} />
+              <StudentLayoutWrapper currentPage="xerox" onLogout={handleLogout}>
+                <Xerox onBack={() => navigate('/dashboard')} userRole={role} />
+              </StudentLayoutWrapper>
             </ProtectedRoute>
           }
         />
@@ -511,7 +572,9 @@ function App() {
           path="/xerox-history"
           element={
             <ProtectedRoute user={user} allowedRoles={['student']}>
-              <XeroxHistory onBack={() => navigate('/dashboard')} />
+              <StudentLayoutWrapper currentPage="xerox-history" onLogout={handleLogout}>
+                <XeroxHistory onBack={() => navigate('/dashboard')} />
+              </StudentLayoutWrapper>
             </ProtectedRoute>
           }
         />
