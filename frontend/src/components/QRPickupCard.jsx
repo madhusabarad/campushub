@@ -245,6 +245,27 @@ export default function QRPickupCard({
 
       {/* Main Body: QR Code & Pickup Action */}
       <div className={`p-4 sm:p-6 space-y-4 ${compact ? 'space-y-3' : ''}`}>
+        {/* Token Badges if present */}
+        {(order?.orderToken || order?.pickupToken) && (
+          <div className="flex flex-col items-center justify-center gap-1 text-center">
+            {order?.orderToken && (
+              <div className="inline-block rounded-xl border border-primary/20 bg-primary/5 px-4 py-1.5">
+                <span className="text-[10px] font-semibold uppercase tracking-widest text-accent">
+                  Order Token:{' '}
+                </span>
+                <span className="font-mono text-base font-bold text-primary">
+                  {order.orderToken}
+                </span>
+              </div>
+            )}
+            {order?.pickupToken && (
+              <p className="font-mono text-xs text-muted-text">
+                Pickup Token: <span className="font-semibold text-text">{order.pickupToken}</span>
+              </p>
+            )}
+          </div>
+        )}
+
         {/* QR Code Presentation Frame */}
         <div className="flex flex-col items-center justify-center text-center">
           <div
