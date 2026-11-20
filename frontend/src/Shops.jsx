@@ -1,4 +1,6 @@
 import { useNavigate } from 'react-router-dom';
+import ThemeToggle from './components/ThemeToggle';
+
 const shops = [
     {
         id: '1',
@@ -26,27 +28,30 @@ const shops = [
 function Shops() {
     const navigate = useNavigate();
     return (
-        <main className="min-h-screen bg-[#f5efe7] text-[#342c29]">
-            <header className="border-b border-[#d8c9ba] bg-[#fbf8f3]">
-                <div className="mx-auto max-w-7xl px-6 py-5">
-                    <p className="text-lg font-semibold text-[#641f2b]">CampusHub</p>
-                    <p className="text-xs text-[#766d63]">
-                        Campus food outlets
-                    </p>
+        <main className="min-h-screen bg-background text-text">
+            <header className="border-b border-border bg-surface">
+                <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-5">
+                    <div>
+                        <p className="text-lg font-semibold text-primary">CampusHub</p>
+                        <p className="text-xs text-muted-text">
+                            Campus food outlets
+                        </p>
+                    </div>
+                    <ThemeToggle />
                 </div>
             </header>
 
             <div className="mx-auto max-w-7xl px-6 py-10">
                 <section className="mb-10">
-                    <p className="mb-2 text-sm font-medium uppercase tracking-[0.18em] text-[#8a4a55]">
+                    <p className="mb-2 text-sm font-medium uppercase tracking-[0.18em] text-secondary">
                         Shops
                     </p>
 
-                    <h1 className="font-serif text-3xl font-semibold text-[#342c29] sm:text-4xl">
+                    <h1 className="font-serif text-3xl font-semibold text-text sm:text-4xl">
                         Campus Outlets
                     </h1>
 
-                    <p className="mt-2 max-w-2xl text-sm leading-6 text-[#766d63]">
+                    <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-text">
                         Browse available campus food outlets and explore their menus.
                     </p>
                 </section>
@@ -56,38 +61,38 @@ function Shops() {
                         {shops.map((shop) => (
                             <article
                                 key={shop.id}
-                                className="border border-[#d8c9ba] bg-[#fbf8f3] p-6 transition hover:-translate-y-1 hover:border-[#a86b75] hover:shadow-[0_12px_30px_rgba(68,45,38,0.08)]"
+                                className="rounded-2xl border border-border bg-surface p-6 shadow-sm transition hover:-translate-y-1 hover:shadow-md"
                             >
                                 <div className="flex items-start justify-between gap-4">
-                                    <p className="text-sm font-medium uppercase tracking-[0.12em] text-[#8a4a55]">
+                                    <p className="text-sm font-medium uppercase tracking-[0.12em] text-secondary">
                                         {shop.category}
                                     </p>
 
                                     <span
-                                        className={`text-xs font-medium ${shop.isOpen
-                                            ? 'text-[#3f6b45]'
-                                            : 'text-[#8a8177]'
+                                        className={`text-xs font-semibold ${shop.isOpen
+                                            ? 'text-emerald-700 dark:text-emerald-300'
+                                            : 'text-muted-text'
                                             }`}
                                     >
                                         {shop.isOpen ? 'Open' : 'Closed'}
                                     </span>
                                 </div>
 
-                                <h2 className="mt-3 text-xl font-semibold text-[#342c29]">
+                                <h2 className="mt-3 text-xl font-semibold text-text">
                                     {shop.name}
                                 </h2>
 
-                                <p className="mt-2 text-sm leading-6 text-[#766d63]">
+                                <p className="mt-2 text-sm leading-6 text-muted-text">
                                     {shop.description}
                                 </p>
 
                                 <button
-    type="button"
-    onClick={() => navigate(`/shops/${shop.id}/menu`)}
-    className="mt-5 text-sm font-medium text-[#641f2b] transition hover:text-[#4f1721]"
->
-    View Menu
-</button>
+                                    type="button"
+                                    onClick={() => navigate(`/shops/${shop.id}/menu`)}
+                                    className="mt-5 text-sm font-semibold text-primary transition hover:text-primary-hover hover:underline cursor-pointer"
+                                >
+                                    View Menu →
+                                </button>
                             </article>
                         ))}
                     </div>
