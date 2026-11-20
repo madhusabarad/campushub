@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import ThemeToggle from './components/ThemeToggle'
 
 const getHeaders = () => {
     const token = localStorage.getItem('campushub_token')
@@ -58,11 +59,11 @@ async function fetchShopkeeperData() {
 }
 
 const statusBadgeStyles = {
-    placed: 'bg-amber-100 text-amber-800 border-amber-300',
-    preparing: 'bg-blue-100 text-blue-800 border-blue-300',
-    ready: 'bg-emerald-100 text-emerald-800 border-emerald-300',
-    completed: 'bg-gray-100 text-gray-700 border-gray-300',
-    cancelled: 'bg-red-100 text-red-700 border-red-300',
+    placed: 'bg-amber-100 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300 border-amber-300 dark:border-amber-800',
+    preparing: 'bg-blue-100 dark:bg-blue-950/40 text-blue-800 dark:text-blue-300 border-blue-300 dark:border-blue-800',
+    ready: 'bg-emerald-100 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300 border-emerald-300 dark:border-emerald-800',
+    completed: 'bg-gray-100 dark:bg-surface-muted text-gray-700 dark:text-muted-text border-gray-300 dark:border-border',
+    cancelled: 'bg-red-100 dark:bg-red-950/40 text-red-700 dark:text-red-300 border-red-300 dark:border-red-800',
 }
 
 const nextTransitionConfig = {
@@ -79,7 +80,7 @@ const nextTransitionConfig = {
     ready: {
         nextStatus: 'completed',
         buttonLabel: 'Mark Completed',
-        buttonClass: 'bg-[#7b1e1e] hover:bg-[#641818] text-white',
+        buttonClass: 'bg-primary hover:bg-primary-hover text-white',
     },
 }
 
@@ -211,25 +212,27 @@ function ShopkeeperDashboard({ onLogout }) {
     }, [orders, selectedStatusFilter])
 
     return (
-        <main className="min-h-screen bg-[#f7f0e6] text-[#3f2720]">
+        <main className="min-h-screen bg-background text-text">
             {/* Header */}
-            <header className="border-b border-[#eadfd2] bg-[#fffaf4]">
+            <header className="border-b border-border bg-surface">
                 <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-5">
                     <div>
-                        <h1 className="text-2xl font-bold text-[#7b1e1e]">
+                        <h1 className="text-2xl font-bold text-primary">
                             CampusHub
                         </h1>
-                        <p className="text-sm text-gray-500">
+                        <p className="text-sm text-muted-text">
                             Shopkeeper Portal
                         </p>
                     </div>
 
                     <div className="flex items-center gap-3">
+                        <ThemeToggle />
+
                         <button
                             type="button"
                             onClick={handleRefresh}
                             disabled={loading || refreshing}
-                            className="inline-flex items-center gap-2 rounded-xl border border-[#eadfd2] bg-white px-4 py-2.5 text-sm font-semibold text-[#7b1e1e] transition hover:bg-[#f7f0e6] disabled:opacity-50"
+                            className="inline-flex items-center gap-2 rounded-xl border border-border bg-surface px-4 py-2.5 text-sm font-semibold text-primary transition hover:bg-surface-hover disabled:opacity-50"
                         >
                             <span className={refreshing ? 'animate-spin' : ''}>🔄</span>
                             {refreshing ? 'Refreshing...' : 'Refresh Orders'}
@@ -238,7 +241,7 @@ function ShopkeeperDashboard({ onLogout }) {
                         <button
                             type="button"
                             onClick={onLogout}
-                            className="rounded-xl bg-[#7b1e1e] px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-[#641818]"
+                            className="rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-primary-hover"
                         >
                             Logout
                         </button>
@@ -251,13 +254,13 @@ function ShopkeeperDashboard({ onLogout }) {
                 <section className="mb-8">
                     <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                         <div>
-                            <p className="mb-2 text-sm font-semibold uppercase tracking-[0.2em] text-[#8b5e3c]">
+                            <p className="mb-2 text-sm font-semibold uppercase tracking-[0.2em] text-secondary">
                                 Shopkeeper Dashboard
                             </p>
-                            <h2 className="text-4xl font-bold">
+                            <h2 className="text-4xl font-bold text-text">
                                 {shopName || 'Assigned Shop'}
                             </h2>
-                            <p className="mt-2 text-gray-600">
+                            <p className="mt-2 text-muted-text">
                                 Manage incoming student orders, preparation stages, and pickup handoffs.
                             </p>
                         </div>
@@ -267,8 +270,8 @@ function ShopkeeperDashboard({ onLogout }) {
                                 <span
                                     className={`inline-flex items-center gap-2 rounded-full border px-4 py-1.5 text-sm font-semibold ${
                                         shopIsOpen
-                                            ? 'border-emerald-200 bg-emerald-50 text-emerald-800'
-                                            : 'border-rose-200 bg-rose-50 text-rose-800'
+                                            ? 'border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300'
+                                            : 'border-rose-200 dark:border-rose-800 bg-rose-50 dark:bg-rose-950/40 text-rose-800 dark:text-rose-300'
                                     }`}
                                 >
                                     <span
@@ -287,7 +290,7 @@ function ShopkeeperDashboard({ onLogout }) {
                 {actionMessage && (
                     <div
                         role="status"
-                        className="mb-6 flex items-center justify-between rounded-xl border border-emerald-200 bg-emerald-50 px-5 py-3 text-sm text-emerald-800"
+                        className="mb-6 flex items-center justify-between rounded-xl border border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950/40 px-5 py-3 text-sm text-emerald-800 dark:text-emerald-300"
                     >
                         <span>✓ {actionMessage}</span>
                         <button
@@ -303,7 +306,7 @@ function ShopkeeperDashboard({ onLogout }) {
                 {actionError && (
                     <div
                         role="alert"
-                        className="mb-6 flex items-center justify-between rounded-xl border border-red-200 bg-red-50 px-5 py-3 text-sm text-red-700"
+                        className="mb-6 flex items-center justify-between rounded-xl border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-950/40 px-5 py-3 text-sm text-red-700 dark:text-red-300"
                     >
                         <span>⚠ {actionError}</span>
                         <button
@@ -317,15 +320,15 @@ function ShopkeeperDashboard({ onLogout }) {
                 )}
 
                 {error && (
-                    <div className="mb-6 rounded-2xl border border-red-200 bg-red-50 px-6 py-5">
-                        <p className="font-semibold text-red-700">
+                    <div className="mb-6 rounded-2xl border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-950/40 px-6 py-5">
+                        <p className="font-semibold text-red-700 dark:text-red-300">
                             Unable to load orders
                         </p>
-                        <p className="mt-1 text-sm text-red-600">{error}</p>
+                        <p className="mt-1 text-sm text-red-600 dark:text-red-400">{error}</p>
                         <button
                             type="button"
                             onClick={handleRefresh}
-                            className="mt-3 text-sm font-semibold text-red-700 underline"
+                            className="mt-3 text-sm font-semibold text-red-700 dark:text-red-300 underline"
                         >
                             Try again
                         </button>
@@ -339,17 +342,17 @@ function ShopkeeperDashboard({ onLogout }) {
                         onClick={() => setSelectedStatusFilter('placed')}
                         className={`rounded-2xl border p-5 text-left shadow-sm transition hover:scale-[1.02] ${
                             selectedStatusFilter === 'placed'
-                                ? 'border-amber-400 bg-amber-50 ring-2 ring-amber-300'
-                                : 'border-[#eadfd2] bg-white'
+                                ? 'border-amber-400 dark:border-amber-700 bg-amber-50 dark:bg-amber-950/30 ring-2 ring-amber-300 dark:ring-amber-800'
+                                : 'border-border bg-surface text-text hover:bg-surface-hover'
                         }`}
                     >
-                        <p className="text-xs font-semibold uppercase tracking-wider text-amber-700">
+                        <p className="text-xs font-semibold uppercase tracking-wider text-amber-700 dark:text-amber-400">
                             Placed Orders
                         </p>
-                        <p className="mt-2 text-3xl font-extrabold text-[#3f2720]">
+                        <p className="mt-2 text-3xl font-extrabold text-text">
                             {orderCounts.placed}
                         </p>
-                        <p className="mt-1 text-xs text-gray-500">Awaiting acceptance</p>
+                        <p className="mt-1 text-xs text-muted-text">Awaiting acceptance</p>
                     </button>
 
                     <button
@@ -357,17 +360,17 @@ function ShopkeeperDashboard({ onLogout }) {
                         onClick={() => setSelectedStatusFilter('preparing')}
                         className={`rounded-2xl border p-5 text-left shadow-sm transition hover:scale-[1.02] ${
                             selectedStatusFilter === 'preparing'
-                                ? 'border-blue-400 bg-blue-50 ring-2 ring-blue-300'
-                                : 'border-[#eadfd2] bg-white'
+                                ? 'border-blue-400 dark:border-blue-700 bg-blue-50 dark:bg-blue-950/30 ring-2 ring-blue-300 dark:ring-blue-800'
+                                : 'border-border bg-surface text-text hover:bg-surface-hover'
                         }`}
                     >
-                        <p className="text-xs font-semibold uppercase tracking-wider text-blue-700">
+                        <p className="text-xs font-semibold uppercase tracking-wider text-blue-700 dark:text-blue-400">
                             In Preparation
                         </p>
-                        <p className="mt-2 text-3xl font-extrabold text-[#3f2720]">
+                        <p className="mt-2 text-3xl font-extrabold text-text">
                             {orderCounts.preparing}
                         </p>
-                        <p className="mt-1 text-xs text-gray-500">Currently being made</p>
+                        <p className="mt-1 text-xs text-muted-text">Currently being made</p>
                     </button>
 
                     <button
@@ -375,17 +378,17 @@ function ShopkeeperDashboard({ onLogout }) {
                         onClick={() => setSelectedStatusFilter('ready')}
                         className={`rounded-2xl border p-5 text-left shadow-sm transition hover:scale-[1.02] ${
                             selectedStatusFilter === 'ready'
-                                ? 'border-emerald-400 bg-emerald-50 ring-2 ring-emerald-300'
-                                : 'border-[#eadfd2] bg-white'
+                                ? 'border-emerald-400 dark:border-emerald-700 bg-emerald-50 dark:bg-emerald-950/30 ring-2 ring-emerald-300 dark:ring-emerald-800'
+                                : 'border-border bg-surface text-text hover:bg-surface-hover'
                         }`}
                     >
-                        <p className="text-xs font-semibold uppercase tracking-wider text-emerald-700">
+                        <p className="text-xs font-semibold uppercase tracking-wider text-emerald-700 dark:text-emerald-400">
                             Ready for Pickup
                         </p>
-                        <p className="mt-2 text-3xl font-extrabold text-[#3f2720]">
+                        <p className="mt-2 text-3xl font-extrabold text-text">
                             {orderCounts.ready}
                         </p>
-                        <p className="mt-1 text-xs text-gray-500">Awaiting student collection</p>
+                        <p className="mt-1 text-xs text-muted-text">Awaiting student collection</p>
                     </button>
 
                     <button
@@ -393,22 +396,22 @@ function ShopkeeperDashboard({ onLogout }) {
                         onClick={() => setSelectedStatusFilter('completed')}
                         className={`rounded-2xl border p-5 text-left shadow-sm transition hover:scale-[1.02] ${
                             selectedStatusFilter === 'completed'
-                                ? 'border-gray-400 bg-gray-100 ring-2 ring-gray-300'
-                                : 'border-[#eadfd2] bg-white'
+                                ? 'border-gray-400 dark:border-border bg-gray-100 dark:bg-surface-muted ring-2 ring-gray-300 dark:ring-border'
+                                : 'border-border bg-surface text-text hover:bg-surface-hover'
                         }`}
                     >
-                        <p className="text-xs font-semibold uppercase tracking-wider text-gray-600">
+                        <p className="text-xs font-semibold uppercase tracking-wider text-muted-text">
                             Completed
                         </p>
-                        <p className="mt-2 text-3xl font-extrabold text-[#3f2720]">
+                        <p className="mt-2 text-3xl font-extrabold text-text">
                             {orderCounts.completed}
                         </p>
-                        <p className="mt-1 text-xs text-gray-500">Fulfilled orders</p>
+                        <p className="mt-1 text-xs text-muted-text">Fulfilled orders</p>
                     </button>
                 </section>
 
                 {/* Filter Tabs */}
-                <div className="mb-6 flex flex-wrap items-center justify-between gap-4 border-b border-[#eadfd2] pb-4">
+                <div className="mb-6 flex flex-wrap items-center justify-between gap-4 border-b border-border pb-4">
                     <div className="flex flex-wrap gap-2">
                         {['all', 'placed', 'preparing', 'ready', 'completed'].map((filter) => (
                             <button
@@ -417,8 +420,8 @@ function ShopkeeperDashboard({ onLogout }) {
                                 onClick={() => setSelectedStatusFilter(filter)}
                                 className={`rounded-xl px-4 py-2 text-sm font-semibold capitalize transition ${
                                     selectedStatusFilter === filter
-                                        ? 'bg-[#7b1e1e] text-white shadow-sm'
-                                        : 'bg-white text-gray-600 hover:bg-[#f1e3d5]'
+                                        ? 'bg-primary text-white shadow-sm'
+                                        : 'bg-surface border border-border text-muted-text hover:bg-surface-hover hover:text-text'
                                 }`}
                             >
                                 {filter === 'all' ? `All Orders (${orderCounts.total})` : `${filter} (${orderCounts[filter] ?? 0})`}
@@ -426,16 +429,16 @@ function ShopkeeperDashboard({ onLogout }) {
                         ))}
                     </div>
 
-                    <p className="text-sm font-medium text-gray-500">
+                    <p className="text-sm font-medium text-muted-text">
                         Showing {filteredOrders.length} order{filteredOrders.length !== 1 ? 's' : ''}
                     </p>
                 </div>
 
                 {/* Loading State */}
                 {loading && (
-                    <div className="rounded-2xl border border-[#eadfd2] bg-white px-6 py-16 text-center shadow-sm">
-                        <div className="mx-auto mb-4 flex h-10 w-10 animate-spin rounded-full border-2 border-[#eadfd2] border-t-[#7b1e1e]" />
-                        <p className="text-base font-semibold text-gray-700">
+                    <div className="rounded-2xl border border-border bg-surface px-6 py-16 text-center shadow-sm">
+                        <div className="mx-auto mb-4 flex h-10 w-10 animate-spin rounded-full border-2 border-border border-t-primary" />
+                        <p className="text-base font-semibold text-muted-text">
                             Loading incoming orders...
                         </p>
                     </div>
@@ -443,12 +446,12 @@ function ShopkeeperDashboard({ onLogout }) {
 
                 {/* Empty State */}
                 {!loading && !error && filteredOrders.length === 0 && (
-                    <div className="rounded-2xl border border-[#eadfd2] bg-white px-6 py-16 text-center shadow-sm">
-                        <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-[#f1e3d5] text-3xl">
+                    <div className="rounded-2xl border border-border bg-surface px-6 py-16 text-center shadow-sm">
+                        <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-surface-muted text-3xl">
                             📋
                         </div>
-                        <h3 className="text-2xl font-bold">No orders found</h3>
-                        <p className="mx-auto mt-2 max-w-md text-gray-500">
+                        <h3 className="text-2xl font-bold text-text">No orders found</h3>
+                        <p className="mx-auto mt-2 max-w-md text-muted-text">
                             {selectedStatusFilter === 'all'
                                 ? 'No orders have been placed for this shop yet.'
                                 : `There are currently no orders with status "${selectedStatusFilter}".`}
@@ -457,7 +460,7 @@ function ShopkeeperDashboard({ onLogout }) {
                             <button
                                 type="button"
                                 onClick={() => setSelectedStatusFilter('all')}
-                                className="mt-5 rounded-xl border border-[#7b1e1e] px-4 py-2 text-sm font-semibold text-[#7b1e1e] hover:bg-[#f7f0e6]"
+                                className="mt-5 rounded-xl border border-primary px-4 py-2 text-sm font-semibold text-primary hover:bg-primary/10"
                             >
                                 View all orders
                             </button>
@@ -475,25 +478,25 @@ function ShopkeeperDashboard({ onLogout }) {
                             return (
                                 <article
                                     key={order._id}
-                                    className="rounded-2xl border border-[#eadfd2] bg-white p-6 shadow-sm transition hover:shadow-md"
+                                    className="rounded-2xl border border-border bg-surface p-6 shadow-sm transition hover:shadow-md"
                                 >
                                     {/* Order Header */}
-                                    <div className="flex flex-col gap-3 border-b border-[#f0e6dc] pb-4 sm:flex-row sm:items-center sm:justify-between">
+                                    <div className="flex flex-col gap-3 border-b border-border pb-4 sm:flex-row sm:items-center sm:justify-between">
                                         <div className="flex flex-wrap items-center gap-3">
-                                            <span className="rounded-xl border border-dashed border-[#7b1e1e] bg-[#fffaf4] px-3.5 py-1.5 font-mono text-lg font-bold text-[#7b1e1e]">
+                                            <span className="rounded-xl border border-dashed border-primary bg-primary/10 px-3.5 py-1.5 font-mono text-lg font-bold text-primary">
                                                 {order.orderToken || order._id}
                                             </span>
 
                                             <span
                                                 className={`rounded-full border px-3 py-1 text-xs font-bold uppercase tracking-wider ${
-                                                    statusBadgeStyles[order.status] || 'bg-gray-100 text-gray-700'
+                                                    statusBadgeStyles[order.status] || 'bg-surface-muted text-muted-text border-border'
                                                 }`}
                                             >
                                                 {order.status}
                                             </span>
                                         </div>
 
-                                        <div className="text-xs text-gray-500">
+                                        <div className="text-xs text-muted-text">
                                             {order.createdAt
                                                 ? new Date(order.createdAt).toLocaleString([], {
                                                       dateStyle: 'medium',
@@ -506,39 +509,39 @@ function ShopkeeperDashboard({ onLogout }) {
                                     {/* Customer & Payment Info */}
                                     <div className="grid gap-4 py-4 sm:grid-cols-2 lg:grid-cols-4">
                                         <div>
-                                            <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">
+                                            <p className="text-xs font-semibold uppercase tracking-wider text-muted-text">
                                                 Customer
                                             </p>
-                                            <p className="mt-1 font-semibold text-gray-800">
+                                            <p className="mt-1 font-semibold text-text">
                                                 {order.userId?.name || 'Student'}
                                             </p>
                                             {order.userId?.email && (
-                                                <p className="text-xs text-gray-500">
+                                                <p className="text-xs text-muted-text">
                                                     {order.userId.email}
                                                 </p>
                                             )}
                                         </div>
 
                                         <div>
-                                            <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">
+                                            <p className="text-xs font-semibold uppercase tracking-wider text-muted-text">
                                                 Payment Method
                                             </p>
-                                            <p className="mt-1 font-semibold capitalize text-gray-800">
+                                            <p className="mt-1 font-semibold capitalize text-text">
                                                 {order.paymentMethod === 'upi' ? 'UPI' : order.paymentMethod === 'razorpay' ? 'Razorpay' : 'Pay at Counter'}
                                             </p>
                                         </div>
 
                                         <div>
-                                            <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">
+                                            <p className="text-xs font-semibold uppercase tracking-wider text-muted-text">
                                                 Payment Status
                                             </p>
                                             <span
                                                 className={`mt-1 inline-block rounded-md px-2 py-0.5 text-xs font-bold uppercase ${
                                                     order.paymentStatus === 'paid'
-                                                        ? 'bg-emerald-100 text-emerald-800'
+                                                        ? 'bg-emerald-100 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300'
                                                         : order.paymentStatus === 'rejected'
-                                                        ? 'bg-rose-100 text-rose-800'
-                                                        : 'bg-amber-100 text-amber-800'
+                                                        ? 'bg-rose-100 dark:bg-rose-950/40 text-rose-800 dark:text-rose-300'
+                                                        : 'bg-amber-100 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300'
                                                 }`}
                                             >
                                                 {order.paymentStatus === 'pending_verification'
@@ -548,23 +551,23 @@ function ShopkeeperDashboard({ onLogout }) {
                                         </div>
 
                                         <div>
-                                            <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">
+                                            <p className="text-xs font-semibold uppercase tracking-wider text-muted-text">
                                                 Total Amount
                                             </p>
-                                            <p className="mt-1 text-xl font-extrabold text-[#7b1e1e]">
+                                            <p className="mt-1 text-xl font-extrabold text-primary">
                                                 ₹{order.totalAmount}
                                             </p>
                                         </div>
                                     </div>
 
                                     {order.paymentMethod === 'upi' && (
-                                        <div className="mb-4 rounded-xl border border-[#eadfd2] bg-[#fbf7f2] p-4 text-xs">
+                                        <div className="mb-4 rounded-xl border border-border bg-surface-muted/40 p-4 text-xs">
                                             <div className="flex flex-wrap items-center justify-between gap-2">
                                                 <div>
-                                                    <span className="font-bold text-[#8b5e3c]">UPI UTR:</span>{' '}
-                                                    <span className="font-mono font-semibold">{order.paymentUtr || 'Not provided'}</span>
+                                                    <span className="font-bold text-secondary">UPI UTR:</span>{' '}
+                                                    <span className="font-mono font-semibold text-text">{order.paymentUtr || 'Not provided'}</span>
                                                     {order.paymentRejectReason && (
-                                                        <p className="mt-1 font-medium text-red-600">Rejection Reason: {order.paymentRejectReason}</p>
+                                                        <p className="mt-1 font-medium text-rose-600 dark:text-rose-400">Rejection Reason: {order.paymentRejectReason}</p>
                                                     )}
                                                 </div>
                                                 {order.paymentProof && (
@@ -572,7 +575,7 @@ function ShopkeeperDashboard({ onLogout }) {
                                                         href={order.paymentProof}
                                                         target="_blank"
                                                         rel="noopener noreferrer"
-                                                        className="font-semibold text-[#7b1e1e] hover:underline"
+                                                        className="font-semibold text-primary hover:underline"
                                                     >
                                                         View Payment Screenshot ↗
                                                     </a>
@@ -601,27 +604,27 @@ function ShopkeeperDashboard({ onLogout }) {
                                     )}
 
                                     {/* Ordered Items Breakdown */}
-                                    <div className="rounded-xl bg-[#f7f0e6]/70 p-4">
-                                        <p className="mb-2 text-xs font-bold uppercase tracking-wider text-[#8b5e3c]">
+                                    <div className="rounded-xl bg-surface-muted/30 border border-border/50 p-4">
+                                        <p className="mb-2 text-xs font-bold uppercase tracking-wider text-secondary">
                                             Items ({order.items?.length || 0})
                                         </p>
-                                        <div className="divide-y divide-[#eadfd2]">
+                                        <div className="divide-y divide-border">
                                             {(order.items || []).map((item, idx) => (
                                                 <div
                                                     key={item._id || idx}
                                                     className="flex items-center justify-between py-2 text-sm"
                                                 >
                                                     <div className="flex items-center gap-2">
-                                                        <span className="font-semibold text-gray-800">
+                                                        <span className="font-semibold text-text">
                                                             {item.name}
                                                         </span>
-                                                        <span className="rounded bg-white px-2 py-0.5 text-xs font-bold text-gray-600">
+                                                        <span className="rounded bg-surface border border-border px-2 py-0.5 text-xs font-bold text-muted-text">
                                                             × {item.quantity}
                                                         </span>
                                                     </div>
-                                                    <div className="font-medium text-gray-700">
+                                                    <div className="font-medium text-muted-text">
                                                         ₹{item.price} each ={' '}
-                                                        <span className="font-bold">
+                                                        <span className="font-bold text-text">
                                                             ₹{item.price * item.quantity}
                                                         </span>
                                                     </div>
@@ -631,8 +634,8 @@ function ShopkeeperDashboard({ onLogout }) {
                                     </div>
 
                                     {/* Status Transition Action */}
-                                    <div className="mt-5 flex flex-wrap items-center justify-between gap-4 border-t border-[#f0e6dc] pt-4">
-                                        <div className="text-xs text-gray-500">
+                                    <div className="mt-5 flex flex-wrap items-center justify-between gap-4 border-t border-border pt-4">
+                                        <div className="text-xs text-muted-text">
                                             Status advances in order: Placed → Preparing → Ready → Completed
                                         </div>
 
@@ -660,7 +663,7 @@ function ShopkeeperDashboard({ onLogout }) {
                                                     )}
                                                 </button>
                                             ) : (
-                                                <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-gray-500">
+                                                <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-muted-text">
                                                     ✓ Final State
                                                 </span>
                                             )}
