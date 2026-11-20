@@ -9,7 +9,7 @@ const shopSchema = new mongoose.Schema(
     },
     category: {
       type: String,
-      enum: ['canteen', 'foodcourt', 'bakery'],
+      enum: ['canteen', 'foodcourt', 'bakery', 'xerox'],
       required: [true, 'Shop category is required'],
     },
     description: {
@@ -29,5 +29,8 @@ const shopSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
+
+shopSchema.index({ shopkeeperId: 1 });
+shopSchema.index({ category: 1 });
 
 module.exports = mongoose.model('Shop', shopSchema);

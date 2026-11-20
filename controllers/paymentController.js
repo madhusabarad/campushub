@@ -4,14 +4,23 @@ const Razorpay = require('razorpay');
 const crypto = require('crypto');
 const Order = require('../models/Order');
 
-const razorpay = new Razorpay({
-  key_id: process.env.RAZORPAY_KEY_ID,
-  key_secret: process.env.RAZORPAY_KEY_SECRET,
-});
+let razorpay = null;
+if (process.env.RAZORPAY_KEY_ID && process.env.RAZORPAY_KEY_SECRET) {
+  razorpay = new Razorpay({
+    key_id: process.env.RAZORPAY_KEY_ID,
+    key_secret: process.env.RAZORPAY_KEY_SECRET,
+  });
+}
 
 // Create Razorpay payment order
 const createPayment = async (req, res) => {
   try {
+    if (!razorpay || !process.env.RAZORPAY_KEY_ID) {
+      return res.status(503).json({
+        message: 'Payment service is not configured on this server',
+      });
+    }
+
     const order = await Order.findOne({
       _id: req.params.orderId,
       userId: req.user.id,
@@ -53,6 +62,12 @@ const createPayment = async (req, res) => {
 // Verify Razorpay payment
 const verifyPayment = async (req, res) => {
   try {
+    if (!process.env.RAZORPAY_KEY_SECRET) {
+      return res.status(503).json({
+        message: 'Payment verification service is not configured on this server',
+      });
+    }
+
     const {
       razorpay_order_id,
       razorpay_payment_id,

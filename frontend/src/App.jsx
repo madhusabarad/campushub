@@ -1,20 +1,104 @@
-import { useState, useEffect } from 'react'
-import { Routes, Route, Navigate, useNavigate, useParams } from 'react-router-dom'
-import { useAuth } from './context/AuthContext'
-import { loginUser, registerUser } from './api/authApi'
-import { getAdminStats } from './api/adminApi'
+import { useEffect, useState } from 'react'
+import {
+  Routes,
+  Route,
+  Navigate,
+  useNavigate,
+  useParams,
+  useLocation,
+} from 'react-router-dom'
 import Dashboard from './Dashboard'
 import Menu from './Menu'
 import Cart from './Cart'
-import './App.css'
+import Xerox from './Xerox'
+import AdminDashboard from './AdminDashboard'
+import ShopkeeperDashboard from './ShopkeeperDashboard'
 import MyOrders from './MyOrders'
-import XeroxRequest from './XeroxRequest'
 import XeroxHistory from './XeroxHistory'
 import ShopkeeperXerox from './ShopkeeperXerox'
 import ShopkeeperOrders from './ShopkeeperOrders'
-import AdminUsers from './AdminUsers' 
-import AdminShops from './AdminShops' 
-import AdminOrders from './AdminOrders' 
+import AdminUsers from './AdminUsers'
+import AdminShops from './AdminShops'
+import AdminOrders from './AdminOrders'
+import { OrderNotificationProvider } from './context/OrderNotificationContext'
+import './App.css'
+
+// Decode a JWT payload without external library (base64url -> JSON)
+function decodeJwt(token) {
+  try {
+    const payload = token.split('.')[1]
+    const base64 = payload.replace(/-/g, '+').replace(/_/g, '/')
+    return JSON.parse(atob(base64))
+  } catch {
+    return {}
+  }
+}
+
+function getStoredUser() {
+  const token = localStorage.getItem('campushub_token')
+  if (!token) return null
+
+  const payload = decodeJwt(token)
+  if (payload.exp && payload.exp * 1000 < Date.now()) {
+    localStorage.removeItem('campushub_token')
+    localStorage.removeItem('campushub_role')
+    localStorage.removeItem('campushub_user')
+    return null
+  }
+
+  let storedUser = null
+  try {
+    const raw = localStorage.getItem('campushub_user')
+    if (raw) storedUser = JSON.parse(raw)
+  } catch {
+    storedUser = null
+  }
+
+  const storedRole = localStorage.getItem('campushub_role')
+  const role = (storedRole || storedUser?.role || payload?.role || 'student').toLowerCase()
+
+  return {
+    ...payload,
+    ...(storedUser || {}),
+    role,
+  }
+}
+
+function getDashboardRouteForRole(role) {
+  const r = (role || 'student').toLowerCase()
+  if (r === 'admin') return '/admin'
+  if (r === 'shopkeeper') return '/shopkeeper'
+  return '/dashboard'
+}
+
+function resolveProtectedPage(requestedPath, role) {
+  const r = (role || 'student').toLowerCase()
+  const cleanPath = (requestedPath || '').replace(/^\/+/, '')
+
+  if (r === 'admin') {
+    if (cleanPath.startsWith('admin')) return `/${cleanPath}`
+    return '/admin'
+  }
+
+  if (r === 'shopkeeper') {
+    if (cleanPath.startsWith('shopkeeper')) return `/${cleanPath}`
+    return '/shopkeeper'
+  }
+
+  // Student role
+  if (
+    cleanPath.startsWith('dashboard') ||
+    cleanPath.startsWith('student-dashboard') ||
+    cleanPath.startsWith('menu') ||
+    cleanPath.startsWith('cart') ||
+    cleanPath.startsWith('my-orders') ||
+    cleanPath.startsWith('xerox')
+  ) {
+    return `/${cleanPath}`
+  }
+
+  return '/dashboard'
+}
 
 function LoginPage({ onLogin }) {
   const [isSignup, setIsSignup] = useState(false)
@@ -22,7 +106,6 @@ function LoginPage({ onLogin }) {
     name: '',
     email: '',
     password: '',
-    role: 'student',
     collegeId: '',
   })
   const [loading, setLoading] = useState(false)
@@ -37,64 +120,78 @@ function LoginPage({ onLogin }) {
   }
 
   const handleSubmit = async (e) => {
-  e.preventDefault()
-  setLoading(true)
-  setError('')
+    e.preventDefault()
+    setLoading(true)
+    setError('')
 
-  try {
-    const body = isSignup
-      ? {
-          name: formData.name.trim(),
-          email: formData.email.trim(),
-          password: formData.password,
-          role: 'student',
-          collegeId: formData.collegeId.trim(),
-        }
-      : {
-          email: formData.email.trim(),
-          password: formData.password,
-        }
+    try {
+      const endpoint = isSignup ? '/api/auth/register' : '/api/auth/login'
 
-    if (isSignup) {
-      await registerUser(body)
+      const body = isSignup
+        ? {
+            name: formData.name.trim(),
+            email: formData.email.trim(),
+            password: formData.password,
+            role: 'student',
+            collegeId: formData.collegeId.trim(),
+          }
+        : {
+            email: formData.email.trim(),
+            password: formData.password,
+          }
 
-      setIsSignup(false)
-      setFormData({
-        name: '',
-        email: formData.email.trim(),
-        password: '',
-        role: 'student',
-        collegeId: '',
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(body),
       })
 
-      setError('Account created successfully. Please log in.')
-      return
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.message || 'Something went wrong')
+      }
+
+      if (isSignup) {
+        setIsSignup(false)
+        setFormData({
+          name: '',
+          email: formData.email.trim(),
+          password: '',
+          collegeId: '',
+        })
+        setError('Account created successfully. Please log in.')
+        return
+      }
+
+      const token = data.token || data.data?.token
+      const userData = data.user || data.data?.user || {}
+
+      if (!token) {
+        throw new Error('Authentication token was not received')
+      }
+
+      let userRole = userData.role || data.role || data.data?.role
+      if (!userRole && token) {
+        const payload = decodeJwt(token)
+        userRole = payload?.role
+      }
+      userRole = (userRole || 'student').toLowerCase()
+
+      const fullUser = { ...userData, role: userRole }
+      onLogin(token, userRole, fullUser)
+    } catch (err) {
+      setError(err.message || 'Something went wrong')
+    } finally {
+      setLoading(false)
     }
-
-    const data = await loginUser(body)
-
-    const token = data.token || data.data?.token
-
-    if (!token) {
-      throw new Error('Authentication token was not received')
-    }
-
-    onLogin(data.user, token)
-
-  } catch (err) {
-    setError(
-      err.response?.data?.message ||
-      err.message ||
-      'Something went wrong'
-    )
-  } finally {
-    setLoading(false)
   }
-}
+
   return (
     <div className="min-h-screen bg-[#f7f0e6] flex items-center justify-center px-6 py-10">
       <div className="w-full max-w-6xl min-h-[650px] bg-white rounded-3xl overflow-hidden shadow-2xl grid grid-cols-1 md:grid-cols-2">
-
         <div className="bg-[#7b1e1e] text-white p-10 md:p-14 flex flex-col justify-center">
           <div className="max-w-md">
             <p className="text-sm uppercase tracking-[0.3em] text-[#f4d7b7] mb-5">
@@ -131,7 +228,6 @@ function LoginPage({ onLogin }) {
 
         <div className="p-8 md:p-14 flex items-center">
           <div className="w-full max-w-md mx-auto">
-
             <div className="mb-8">
               <p className="text-sm uppercase tracking-[0.2em] text-[#8b5e3c] mb-2">
                 {isSignup ? 'Create account' : 'Welcome back'}
@@ -151,106 +247,80 @@ function LoginPage({ onLogin }) {
             {error && (
               <div
                 role="status"
-                className={`mb-5 rounded-xl border px-4 py-3 text-sm ${error.includes('successfully')
+                className={`mb-5 rounded-xl border px-4 py-3 text-sm ${
+                  error.includes('successfully')
                     ? 'border-green-200 bg-green-50 text-green-700'
                     : 'border-red-200 bg-red-50 text-red-700'
-                  }`}
+                }`}
               >
                 {error}
               </div>
             )}
 
-            <form onSubmit={handleSubmit} className="space-y-5">
-
+            <form onSubmit={handleSubmit} className="space-y-4">
               {isSignup && (
-                <>
-                  <div>
-                    <label className="block text-sm font-medium text-[#3f2720] mb-2">
-                      Name
-                    </label>
-
-                    <input
-                      type="text"
-                      name="name"
-                      value={formData.name}
-                      onChange={handleChange}
-                      required
-                      autoComplete="name"
-                      placeholder="Enter your name"
-                      className="w-full rounded-xl border border-gray-200 px-4 py-3 outline-none focus:border-[#7b1e1e] focus:ring-2 focus:ring-[#7b1e1e]/10"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-[#3f2720] mb-2">
-                      Role
-                    </label>
-
-                    <select
-                      name="role"
-                      value={formData.role}
-                      onChange={handleChange}
-                      required
-                      className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 outline-none focus:border-[#7b1e1e] focus:ring-2 focus:ring-[#7b1e1e]/10"
-                    >
-                      <option value="student">Student</option>
-                      <option value="shopkeeper">Shopkeeper</option>
-                      <option value="admin">Admin</option>
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-[#3f2720] mb-2">
-                      College ID
-                    </label>
-
-                    <input
-                      type="text"
-                      name="collegeId"
-                      value={formData.collegeId}
-                      onChange={handleChange}
-                      required
-                      placeholder="Enter your actual college ID"
-                      className="w-full rounded-xl border border-gray-200 px-4 py-3 outline-none focus:border-[#7b1e1e] focus:ring-2 focus:ring-[#7b1e1e]/10"
-                    />
-                  </div>
-                </>
+                <div>
+                  <label className="mb-2 block text-sm font-semibold text-gray-700">
+                    Full Name
+                  </label>
+                  <input
+                    type="text"
+                    name="name"
+                    value={formData.name}
+                    onChange={handleChange}
+                    required
+                    placeholder="Enter your full name"
+                    className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none transition focus:border-[#7b1e1e]"
+                  />
+                </div>
               )}
 
               <div>
-                <label className="block text-sm font-medium text-[#3f2720] mb-2">
-                  Email
+                <label className="mb-2 block text-sm font-semibold text-gray-700">
+                  Campus Email
                 </label>
-
                 <input
                   type="email"
                   name="email"
                   value={formData.email}
                   onChange={handleChange}
                   required
-                  autoComplete="email"
-                  placeholder="Enter your email"
-                  className="w-full rounded-xl border border-gray-200 px-4 py-3 outline-none focus:border-[#7b1e1e] focus:ring-2 focus:ring-[#7b1e1e]/10"
+                  placeholder="Enter your campus email"
+                  className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none transition focus:border-[#7b1e1e]"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-[#3f2720] mb-2">
+                <label className="mb-2 block text-sm font-semibold text-gray-700">
                   Password
                 </label>
-
                 <input
                   type="password"
                   name="password"
                   value={formData.password}
                   onChange={handleChange}
                   required
-                  minLength={6}
-                  autoComplete={isSignup ? 'new-password' : 'current-password'}
                   placeholder="Enter your password"
-                  className="w-full rounded-xl border border-gray-200 px-4 py-3 outline-none focus:border-[#7b1e1e] focus:ring-2 focus:ring-[#7b1e1e]/10"
+                  className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none transition focus:border-[#7b1e1e]"
                 />
               </div>
+
+              {isSignup && (
+                <div>
+                  <label className="mb-2 block text-sm font-semibold text-gray-700">
+                    College ID
+                  </label>
+                  <input
+                    type="text"
+                    name="collegeId"
+                    value={formData.collegeId}
+                    onChange={handleChange}
+                    required
+                    placeholder="Enter your college ID"
+                    className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none transition focus:border-[#7b1e1e]"
+                  />
+                </div>
+              )}
 
               <button
                 type="submit"
@@ -288,361 +358,254 @@ function LoginPage({ onLogin }) {
   )
 }
 
-function ProtectedRoute({ children }) {
-  const { user } = useAuth()
-
-  return user ? children : <Navigate to="/login" replace />
-}
-
-function MenuPage() {
+function MenuRouteWrapper({ onBack, userRole }) {
   const { shopId } = useParams()
-  const navigate = useNavigate()
-
-  return (
-    <Menu
-      shopId={shopId}
-      onBack={() => navigate('/dashboard')}
-    />
-  )
+  return <Menu shopId={shopId} onBack={onBack} userRole={userRole} />
 }
 
-function DashboardPage() {
-  const navigate = useNavigate()
-  const { logout } = useAuth()
+function ProtectedRoute({ children, user, allowedRoles }) {
+  const location = useLocation()
 
-  const handleLogout = () => {
-    logout()
-    navigate('/login', { replace: true })
+  if (!user) {
+    return <Navigate to="/login" state={{ from: location }} replace />
   }
 
-  return (
- <Dashboard
-  onOpenMenu={(shopId) => navigate(`/menu/${shopId}`)}
-  onOpenCart={() => navigate('/cart')}
-  onOpenOrders={() => navigate('/my-orders')}
-  onOpenXerox={() => navigate('/xerox')}
-  onLogout={handleLogout}
-/>
-  )
-}
-function XeroxPage() {
-  const navigate = useNavigate()
-
-  return (
-    <XeroxRequest
-      onBack={() => navigate('/dashboard')}
-      onViewHistory={() => navigate('/xerox-history')}
-    />
-  )
-}
-
-function XeroxHistoryPage() {
-  const navigate = useNavigate()
-
-  return (
-    <XeroxHistory
-      onBack={() => navigate('/xerox')}
-    />
-  )
-}
-
-function CartPage() {
-  const navigate = useNavigate()
-
-  return <Cart onBack={() => navigate('/dashboard')} />
-}
-
-function MyOrdersPage() {
-  const navigate = useNavigate()
-
-  return (
-    <MyOrders onBack={() => navigate('/dashboard')} />
-  )
-}
-
-function ShopkeeperPage() {
-  const { logout } = useAuth()
-  const navigate = useNavigate()
-
-  return (
-    <div className="min-h-screen bg-[#f8f3ed]">
-      <div className="flex items-center justify-between bg-[#7b1e1e] p-5 text-white">
-        <h1 className="text-2xl font-bold">
-          CampusHub Shopkeeper Dashboard
-        </h1>
-
-        <button
-          onClick={() => {
-            logout()
-            navigate('/login', { replace: true })
-          }}
-          className="rounded bg-white px-4 py-2 font-semibold text-[#7b1e1e]"
-        >
-          Logout
-        </button>
-      </div>
-
-      <ShopkeeperXerox />
-      <ShopkeeperOrders/>
-    </div>
-  )
-}
-
-function AdminPage() {
-  const { logout } = useAuth()
-  const navigate = useNavigate()
-
-  const [stats, setStats] = useState(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
-
-  const loadStats = async () => {
-    try {
-      setLoading(true)
-      setError('')
-
-      const result = await getAdminStats()
-      setStats(result.data)
-    } catch (err) {
-      setError(
-        err.response?.data?.message ||
-        'Unable to load admin statistics.'
-      )
-    } finally {
-      setLoading(false)
-    }
+  const role = (user.role || 'student').toLowerCase()
+  if (allowedRoles && !allowedRoles.includes(role)) {
+    const targetDashboard = getDashboardRouteForRole(role)
+    return <Navigate to={targetDashboard} replace />
   }
 
-  useEffect(() => {
-    loadStats()
-  }, [])
-
-  const statCards = [
-    { title: 'Total Users', value: stats?.users?.total ?? 0 },
-    { title: 'Students', value: stats?.users?.students ?? 0 },
-    { title: 'Shopkeepers', value: stats?.users?.shopkeepers ?? 0 },
-    { title: 'Total Shops', value: stats?.shops?.total ?? 0 },
-    { title: 'Open Shops', value: stats?.shops?.open ?? 0 },
-    { title: 'Total Orders', value: stats?.orders?.total ?? 0 },
-    { title: 'Preparing Orders', value: stats?.orders?.preparing ?? 0 },
-    { title: 'Completed Orders', value: stats?.orders?.completed ?? 0 },
-  ]
-
-  return (
-    <div className="min-h-screen bg-[#f8f3ed]">
-      <header className="flex items-center justify-between bg-[#7b1e1e] p-5 text-white">
-        <h1 className="text-2xl font-bold">CampusHub Admin Dashboard</h1>
-
-        <button
-          onClick={() => {
-            logout()
-            navigate('/login', { replace: true })
-          }}
-          className="rounded bg-white px-4 py-2 font-semibold text-[#7b1e1e]"
-        >
-          Logout
-        </button>
-      </header>
-
-      <main className="mx-auto max-w-6xl p-6">
-        <h2 className="mb-2 text-2xl font-bold text-[#7b1e1e]">
-          Dashboard Overview
-        </h2>
-
-        <p className="mb-6 text-gray-600">
-          Monitor CampusHub users, shops and food orders.
-        </p>
-
-        <button
-          onClick={loadStats}
-          className="mb-6 rounded-lg bg-[#7b1e1e] px-4 py-2 text-white"
-        >
-          Refresh Statistics
-        </button>
-        <button
-  onClick={() => navigate('/admin/users')}
-  className="mb-6 ml-3 rounded-lg border border-[#7b1e1e] px-4 py-2 text-[#7b1e1e]"
->
-  Manage Users
-</button>
-
-<button
-  onClick={() => navigate('/admin/shops')}
-  className="mb-6 ml-3 rounded-lg border border-[#7b1e1e] px-4 py-2 text-[#7b1e1e]"
->
-  Manage Shops
-</button>
-
-<button
-  onClick={() => navigate('/admin/orders')}
-  className="mb-6 ml-3 rounded-lg border border-[#7b1e1e] px-4 py-2 text-[#7b1e1e]"
->
-  Manage Orders
-</button>
-
-        {loading ? (
-          <p>Loading dashboard statistics...</p>
-        ) : error ? (
-          <p className="text-red-600">{error}</p>
-        ) : (
-          <>
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              {statCards.map((card) => (
-                <div
-                  key={card.title}
-                  className="rounded-xl bg-white p-5 shadow"
-                >
-                  <p className="text-gray-600">{card.title}</p>
-                  <h3 className="mt-2 text-3xl font-bold text-[#7b1e1e]">
-                    {card.value}
-                  </h3>
-                </div>
-              ))}
-            </div>
-
-            <div className="mt-6 rounded-xl bg-white p-5 shadow">
-              <h3 className="mb-3 text-xl font-bold text-[#7b1e1e]">
-                Order Value
-              </h3>
-              <p className="text-3xl font-bold">
-                ₹{stats?.totalOrderValue ?? 0}
-              </p>
-            </div>
-          </>
-        )}
-      </main>
-    </div>
-  )
+  return children
 }
 
 function App() {
-  const { user, login } = useAuth()
+  const [user, setUser] = useState(() => getStoredUser())
   const navigate = useNavigate()
 
-  const handleLogin = (userData, token) => {
-  login(userData, token)
+  const role = (user?.role || 'student').toLowerCase()
 
-  const role = userData?.role?.toLowerCase()
+  const handleLogin = (token, roleArg, userArg) => {
+    let tokenVal = token
+    let roleVal = roleArg
+    let userVal = userArg
 
-  if (role === 'student') {
-    navigate('/dashboard', { replace: true })
-  } else if (role === 'shopkeeper') {
-    navigate('/shopkeeper', { replace: true })
-  } else if (role === 'admin') {
-    navigate('/admin', { replace: true })
-  } else {
+    if (typeof token === 'object' && token !== null && !roleArg) {
+      tokenVal = token.token || token.data?.token
+      userVal = token.user || token.data?.user
+      roleVal = userVal?.role || token.role
+    } else if (typeof roleArg === 'object' && roleArg !== null && !userArg) {
+      userVal = roleArg
+      roleVal = roleArg.role
+    }
+
+    if (!roleVal && tokenVal) {
+      const payload = decodeJwt(tokenVal)
+      roleVal = payload?.role
+    }
+
+    roleVal = (roleVal || 'student').toLowerCase()
+    userVal = { ...(userVal || {}), role: roleVal }
+
+    localStorage.setItem('campushub_token', tokenVal)
+    localStorage.setItem('campushub_role', roleVal)
+    localStorage.setItem('campushub_user', JSON.stringify(userVal))
+
+    setUser(userVal)
+
+    const targetRoute = getDashboardRouteForRole(roleVal)
+    navigate(targetRoute, { replace: true })
+  }
+
+  const handleLogout = () => {
+    localStorage.removeItem('campushub_token')
+    localStorage.removeItem('campushub_role')
+    localStorage.removeItem('campushub_user')
+    localStorage.removeItem('campushub_notifications')
+    localStorage.removeItem('campushub_known_statuses')
+    localStorage.removeItem('token')
+    localStorage.removeItem('role')
+    localStorage.removeItem('user')
+
+    setUser(null)
     navigate('/login', { replace: true })
   }
-}
 
   return (
-    <Routes>
-      <Route
-  path="/login"
-  element={
-    user
-      ? <Navigate
-          to={
-            user.role?.toLowerCase() === 'shopkeeper'
-              ? '/shopkeeper'
-              : user.role?.toLowerCase() === 'admin'
-              ? '/admin'
-              : '/dashboard'
+    <OrderNotificationProvider role={role}>
+      <Routes>
+        <Route
+          path="/login"
+          element={
+            user ? (
+              <Navigate to={getDashboardRouteForRole(role)} replace />
+            ) : (
+              <LoginPage onLogin={handleLogin} />
+            )
           }
-          replace
         />
-      : <LoginPage onLogin={handleLogin} />
-  }
-/>
 
-      <Route
-        path="/dashboard"
-        element={
-          <ProtectedRoute>
-            <DashboardPage />
-          </ProtectedRoute>
-        }
-      />
+        {/* Student Routes */}
+        <Route
+          path="/dashboard"
+          element={
+            <ProtectedRoute user={user} allowedRoles={['student']}>
+              <Dashboard
+                onOpenMenu={(shopId) => navigate(`/menu/${shopId}`)}
+                onOpenCart={() => navigate('/cart')}
+                onOpenOrders={() => navigate('/my-orders')}
+                onOpenXerox={() => navigate('/xerox')}
+                onLogout={handleLogout}
+                userRole={role}
+                userName={user?.name || ''}
+              />
+            </ProtectedRoute>
+          }
+        />
 
-      <Route
-  path="/xerox"
-  element={
-    <ProtectedRoute>
-      <XeroxPage />
-    </ProtectedRoute>
-  }
-/>
+        <Route
+          path="/student-dashboard"
+          element={<Navigate to="/dashboard" replace />}
+        />
 
-<Route
-  path="/xerox-history"
-  element={
-    <ProtectedRoute>
-      <XeroxHistoryPage />
-    </ProtectedRoute>
-  }
-/>
+        <Route
+          path="/menu/:shopId"
+          element={
+            <ProtectedRoute user={user} allowedRoles={['student']}>
+              <MenuRouteWrapper
+                onBack={() => navigate('/dashboard')}
+                userRole={role}
+              />
+            </ProtectedRoute>
+          }
+        />
 
-      <Route
-        path="/menu/:shopId"
-        element={
-          <ProtectedRoute>
-            <MenuPage />
-          </ProtectedRoute>
-        }
-      />
+        <Route
+          path="/cart"
+          element={
+            <ProtectedRoute user={user} allowedRoles={['student']}>
+              <Cart onBack={() => navigate('/dashboard')} />
+            </ProtectedRoute>
+          }
+        />
 
-      <Route
-        path="/cart"
-        element={
-          <ProtectedRoute>
-            <CartPage />
-          </ProtectedRoute>
-        }
-      />
+        <Route
+          path="/my-orders"
+          element={
+            <ProtectedRoute user={user} allowedRoles={['student']}>
+              <MyOrders onBack={() => navigate('/dashboard')} />
+            </ProtectedRoute>
+          }
+        />
 
-      <Route
-  path="/my-orders"
-  element={
-    <ProtectedRoute>
-      <MyOrdersPage />
-    </ProtectedRoute>
-  }
-/>
+        <Route
+          path="/xerox"
+          element={
+            <ProtectedRoute user={user} allowedRoles={['student']}>
+              <Xerox onBack={() => navigate('/dashboard')} userRole={role} />
+            </ProtectedRoute>
+          }
+        />
 
-      <Route
-  path="/shopkeeper"
-  element={
-    <ProtectedRoute>
-      <ShopkeeperPage />
-    </ProtectedRoute>
-  }
-/>
+        <Route
+          path="/xerox-history"
+          element={
+            <ProtectedRoute user={user} allowedRoles={['student']}>
+              <XeroxHistory onBack={() => navigate('/dashboard')} />
+            </ProtectedRoute>
+          }
+        />
 
-<Route
-  path="/admin"
-  element={
-    <ProtectedRoute>
-      <AdminPage />
-    </ProtectedRoute>
-  }
-/>
-<Route
- path="/admin/users"
-  element={
-  <AdminUsers />
-  } 
-  />
+        {/* Shopkeeper Routes */}
+        <Route
+          path="/shopkeeper"
+          element={
+            <ProtectedRoute user={user} allowedRoles={['shopkeeper']}>
+              <ShopkeeperDashboard onLogout={handleLogout} />
+            </ProtectedRoute>
+          }
+        />
 
-  <Route path="/admin/shops" element={<AdminShops />} />
+        <Route
+          path="/shopkeeper-dashboard"
+          element={<Navigate to="/shopkeeper" replace />}
+        />
 
-  <Route path="/admin/orders" element={<AdminOrders />} />
+        <Route
+          path="/shopkeeper/orders"
+          element={
+            <ProtectedRoute user={user} allowedRoles={['shopkeeper']}>
+              <ShopkeeperOrders />
+            </ProtectedRoute>
+          }
+        />
 
-      <Route
-        path="*"
-        element={<Navigate to={user ? '/dashboard' : '/login'} replace />}
-      />
-    </Routes>
+        <Route
+          path="/shopkeeper/xerox"
+          element={
+            <ProtectedRoute user={user} allowedRoles={['shopkeeper']}>
+              <ShopkeeperXerox />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Admin Routes */}
+        <Route
+          path="/admin"
+          element={
+            <ProtectedRoute user={user} allowedRoles={['admin']}>
+              <AdminDashboard onLogout={handleLogout} />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/admin-dashboard"
+          element={<Navigate to="/admin" replace />}
+        />
+
+        <Route
+          path="/admin/users"
+          element={
+            <ProtectedRoute user={user} allowedRoles={['admin']}>
+              <AdminUsers />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/admin/shops"
+          element={
+            <ProtectedRoute user={user} allowedRoles={['admin']}>
+              <AdminShops />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/admin/orders"
+          element={
+            <ProtectedRoute user={user} allowedRoles={['admin']}>
+              <AdminOrders />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Catch-all */}
+        <Route
+          path="*"
+          element={
+            user ? (
+              <Navigate to={getDashboardRouteForRole(role)} replace />
+            ) : (
+              <Navigate to="/login" replace />
+            )
+          }
+        />
+      </Routes>
+    </OrderNotificationProvider>
   )
 }
 
+export { resolveProtectedPage }
 export default App

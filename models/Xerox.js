@@ -7,7 +7,6 @@ const xeroxSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
       required: true,
-      index: true,
     },
 
     shopkeeper: {
@@ -118,7 +117,6 @@ const xeroxSchema = new mongoose.Schema(
         'cancelled',
       ],
       default: 'pending',
-      index: true,
     },
 
     paymentMethod: {
@@ -177,5 +175,8 @@ xeroxSchema.pre('validate', function () {
     );
   }
 });
+
+xeroxSchema.index({ student: 1, createdAt: -1 });
+xeroxSchema.index({ status: 1, createdAt: -1 });
 
 module.exports = mongoose.model('Xerox', xeroxSchema);
