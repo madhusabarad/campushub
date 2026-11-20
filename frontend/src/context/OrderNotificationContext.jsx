@@ -1,4 +1,14 @@
-import { createContext, useContext, useEffect, useState, useCallback, useMemo } from 'react'
+/* eslint-disable react-refresh/only-export-components */
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react'
+import { buildStatusNotification } from '../utils/orderTimeline'
 
 const OrderNotificationContext = createContext(null)
 
@@ -43,7 +53,7 @@ function saveStoredJson(key, data) {
   try {
     localStorage.setItem(key, JSON.stringify(data))
   } catch {
-    // Ignore quota errors
+    // ignore local storage quota / security errors
   }
 }
 
@@ -55,83 +65,69 @@ export function OrderNotificationProvider({ children, role: roleProp }) {
     loadStoredJson(NOTIFICATIONS_STORAGE_KEY, [])
   )
   const [toasts, setToasts] = useState([])
+  const [selectedOrderId, setSelectedOrderId] = useState(null)
 
-  const addToast = useCallback((notification) => {
-    const toastId = `${notification.id}-${Date.now()}`
-    setToasts((prev) => [...prev, { ...notification, toastId }])
+  const knownStatusesRef = useRef(
+    loadStoredJson(KNOWN_STATUSES_STORAGE_KEY, {})
+  )
 
-    setTimeout(() => {
-      setToasts((prev) => prev.filter((t) => t.toastId !== toastId))
-    }, 6000)
+  // Keep localStorage synced when notifications change
+  useEffect(() => {
+    saveStoredJson(NOTIFICATIONS_STORAGE_KEY, notifications)
+  }, [notifications])
+
+  // Toast management
+  const addToast = useCallback((toastData) => {
+    const id = toastData.id || `toast-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`
+    setToasts((prev) => [...prev, { ...toastData, id }])
   }, [])
 
-  const removeToast = useCallback((toastId) => {
-    setToasts((prev) => prev.filter((t) => t.toastId !== toastId))
+  const dismissToast = useCallback((id) => {
+    setToasts((prev) => prev.filter((t) => t.id !== id))
   }, [])
 
-  const markAsRead = useCallback((notificationId) => {
-    setNotifications((prev) => {
-      const updated = prev.map((n) =>
-        n.id === notificationId ? { ...n, read: true } : n
-      )
-      saveStoredJson(NOTIFICATIONS_STORAGE_KEY, updated)
-      return updated
-    })
+  // Notification management
+  const markAsRead = useCallback((id) => {
+    setNotifications((prev) =>
+      prev.map((n) => (n.id === id ? { ...n, read: true } : n))
+    )
   }, [])
 
   const markAllAsRead = useCallback(() => {
-    setNotifications((prev) => {
-      const updated = prev.map((n) => ({ ...n, read: true }))
-      saveStoredJson(NOTIFICATIONS_STORAGE_KEY, updated)
-      return updated
-    })
+    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })))
+  }, [])
+
+  const clearNotification = useCallback((id) => {
+    setNotifications((prev) => prev.filter((n) => n.id !== id))
   }, [])
 
   const clearAllNotifications = useCallback(() => {
     setNotifications([])
-    saveStoredJson(NOTIFICATIONS_STORAGE_KEY, [])
   }, [])
 
-  const createNotification = useCallback(
-    (order, newStatus) => {
-      const id = `${order._id || order.id}-${newStatus}-${Date.now()}`
-      const shopName = order.shopId?.name || order.shopName || 'Shop'
-      const token = order.orderToken ? `(#${order.orderToken})` : ''
+  // Explicitly notify about an order update (e.g. right after checkout)
+  const notifyOrderStatus = useCallback(
+    (order, previousStatus = null) => {
+      if (!order || !order._id) return
 
-      const statusMessages = {
-        preparing: `Your order from ${shopName} ${token} is now being prepared!`,
-        ready: `Your order from ${shopName} ${token} is READY for pickup!`,
-        completed: `Your order from ${shopName} ${token} has been completed. Enjoy!`,
-        cancelled: `Your order from ${shopName} ${token} was cancelled.`,
-      }
+      const notif = buildStatusNotification(order, previousStatus)
+      setNotifications((prev) => [notif, ...prev.filter((n) => n.id !== notif.id)])
 
-      const message =
-        statusMessages[newStatus] ||
-        `Your order from ${shopName} ${token} status changed to ${newStatus}.`
-
-      const notification = {
-        id,
-        orderId: order._id || order.id,
-        orderToken: order.orderToken,
-        shopName,
-        status: newStatus,
-        message,
-        read: false,
-        createdAt: new Date().toISOString(),
-      }
-
-      setNotifications((prev) => {
-        const updated = [notification, ...prev].slice(0, 50)
-        saveStoredJson(NOTIFICATIONS_STORAGE_KEY, updated)
-        return updated
+      // Trigger Toast notification
+      addToast({
+        title: notif.title,
+        message: notif.message,
+        status: notif.status,
       })
 
-      addToast(notification)
+      // Update known statuses
+      knownStatusesRef.current[order._id] = order.status
+      saveStoredJson(KNOWN_STATUSES_STORAGE_KEY, knownStatusesRef.current)
     },
     [addToast]
   )
 
-  // Fetch orders from API - strictly only when role is 'student'
+  // Fetch orders from API - only when role is 'student'
   const fetchOrders = useCallback(async () => {
     const token = localStorage.getItem('campushub_token')
     const currentRole = roleProp || getStoredRole()
@@ -143,50 +139,105 @@ export function OrderNotificationProvider({ children, role: roleProp }) {
     }
 
     try {
-      const response = await fetch('/api/orders?limit=20', {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-      })
+      const [response, shopsRes] = await Promise.all([
+        fetch('/api/orders?limit=10', {
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+        }),
+        fetch('/api/shops?limit=100').catch(() => null),
+      ])
 
-      if (response.status === 401 || response.status === 403) {
-        setOrders([])
+      if (!response.ok) {
         setLoadingOrders(false)
         return
       }
 
-      if (!response.ok) {
-        throw new Error('Failed to fetch orders')
+      const result = await response.json()
+      let shopsMap = new Map()
+      if (shopsRes && shopsRes.ok) {
+        const shopsData = await shopsRes.json().catch(() => ({}))
+        if (Array.isArray(shopsData.data)) {
+          shopsMap = new Map(shopsData.data.map((s) => [String(s._id), s]))
+        }
       }
 
-      const data = await response.json()
-      const fetchedOrders = data.data || data.orders || []
-
-      const knownStatuses = loadStoredJson(KNOWN_STATUSES_STORAGE_KEY, {})
-      const updatedStatuses = { ...knownStatuses }
-      const isFirstLoad = Object.keys(knownStatuses).length === 0 && notifications.length === 0
-
-      fetchedOrders.forEach((order) => {
-        const orderId = order._id || order.id
-        const currentStatus = order.status
-        const previousStatus = knownStatuses[orderId]
-
-        if (!isFirstLoad && previousStatus && previousStatus !== currentStatus) {
-          createNotification(order, currentStatus)
+      const rawList = Array.isArray(result.data) ? result.data : []
+      const orderList = rawList.map((order) => {
+        const rawShopId = order.shopId?._id || order.shopId
+        const fullShop = rawShopId ? shopsMap.get(String(rawShopId)) : null
+        const shopObj =
+          fullShop ||
+          (typeof order.shopId === 'object' && order.shopId !== null
+            ? order.shopId
+            : { _id: rawShopId })
+        return {
+          ...order,
+          total: order.total ?? order.totalAmount,
+          shop: shopObj,
+          shopId: shopObj,
         }
-
-        updatedStatuses[orderId] = currentStatus
       })
+      setOrders(orderList)
 
-      saveStoredJson(KNOWN_STATUSES_STORAGE_KEY, updatedStatuses)
-      setOrders(fetchedOrders)
+      const known = { ...knownStatusesRef.current }
+      let hasChanges = false
+      const newNotifications = []
+      const newToasts = []
+
+      const isFirstLoad = Object.keys(known).length === 0
+
+      for (const order of orderList) {
+        const orderId = order._id
+        if (!orderId) continue
+
+        const currentStatus = (order.status || 'placed').toLowerCase()
+        const prevStatus = known[orderId]
+
+        if (!prevStatus) {
+          // Newly encountered order
+          known[orderId] = currentStatus
+          hasChanges = true
+
+          // On first load, seed active orders into notifications if empty
+          if (isFirstLoad && notifications.length === 0) {
+            const seedNotif = buildStatusNotification(order)
+            newNotifications.push({ ...seedNotif, read: currentStatus === 'completed' })
+          }
+        } else if (prevStatus !== currentStatus) {
+          // Status has changed!
+          known[orderId] = currentStatus
+          hasChanges = true
+
+          const statusNotif = buildStatusNotification(order, prevStatus)
+          newNotifications.push(statusNotif)
+          newToasts.push({
+            title: statusNotif.title,
+            message: statusNotif.message,
+            status: statusNotif.status,
+          })
+        }
+      }
+
+      if (hasChanges) {
+        knownStatusesRef.current = known
+        saveStoredJson(KNOWN_STATUSES_STORAGE_KEY, known)
+      }
+
+      if (newNotifications.length > 0) {
+        setNotifications((prev) => [...newNotifications, ...prev])
+      }
+
+      for (const toast of newToasts) {
+        addToast(toast)
+      }
     } catch {
-      // Background polling failures are silent
+      // network/fetch errors handled gracefully
     } finally {
       setLoadingOrders(false)
     }
-  }, [addToast, notifications.length, roleProp, createNotification])
+  }, [addToast, notifications.length, roleProp])
 
   // Periodic polling when authenticated as student
   useEffect(() => {
@@ -204,7 +255,9 @@ export function OrderNotificationProvider({ children, role: roleProp }) {
       }
     }
 
-    const timer = setTimeout(runFetch, 1000)
+    const timer = setTimeout(() => {
+      runFetch()
+    }, 0)
 
     const interval = setInterval(() => {
       const token = localStorage.getItem('campushub_token')
@@ -215,9 +268,9 @@ export function OrderNotificationProvider({ children, role: roleProp }) {
     }, POLL_INTERVAL_MS)
 
     return () => {
+      isMounted = false
       clearTimeout(timer)
       clearInterval(interval)
-      isMounted = false
     }
   }, [fetchOrders, roleProp])
 
@@ -233,11 +286,16 @@ export function OrderNotificationProvider({ children, role: roleProp }) {
       notifications,
       unreadCount,
       toasts,
-      refetchOrders: fetchOrders,
+      selectedOrderId,
+      setSelectedOrderId,
+      addToast,
+      dismissToast,
       markAsRead,
       markAllAsRead,
+      clearNotification,
       clearAllNotifications,
-      removeToast,
+      notifyOrderStatus,
+      refreshOrders: fetchOrders,
     }),
     [
       orders,
@@ -245,11 +303,15 @@ export function OrderNotificationProvider({ children, role: roleProp }) {
       notifications,
       unreadCount,
       toasts,
-      fetchOrders,
+      selectedOrderId,
+      addToast,
+      dismissToast,
       markAsRead,
       markAllAsRead,
+      clearNotification,
       clearAllNotifications,
-      removeToast,
+      notifyOrderStatus,
+      fetchOrders,
     ]
   )
 
@@ -269,11 +331,16 @@ export function useOrderNotifications() {
       notifications: [],
       unreadCount: 0,
       toasts: [],
-      refetchOrders: () => {},
+      selectedOrderId: null,
+      setSelectedOrderId: () => {},
+      addToast: () => {},
+      dismissToast: () => {},
       markAsRead: () => {},
       markAllAsRead: () => {},
+      clearNotification: () => {},
       clearAllNotifications: () => {},
-      removeToast: () => {},
+      notifyOrderStatus: () => {},
+      refreshOrders: () => {},
     }
   }
   return context
