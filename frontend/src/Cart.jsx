@@ -1,491 +1,951 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import Card from './components/Card'
+import Button from './components/Button'
+import Badge from './components/Badge'
+import Input from './components/Input'
+import CheckoutSummary from './components/CheckoutSummary'
 import UPIPaymentForm from './components/UPIPaymentForm'
+import PaymentSuccessView from './components/PaymentSuccessView'
+import { useOrderNotifications } from './context/OrderNotificationContext'
+import {
+  calculateOrderPricing,
+  formatCurrency,
+} from './utils/checkoutPayment'
 
 const getHeaders = () => {
-    const token = localStorage.getItem('campushub_token')
+  const token = localStorage.getItem('campushub_token')
 
-    return {
-        'Content-Type': 'application/json',
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    }
+  return {
+    'Content-Type': 'application/json',
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+  }
 }
 
 async function apiRequest(url, options = {}) {
-    const response = await fetch(url, {
-        ...options,
-        headers: {
-            ...getHeaders(),
-            ...options.headers,
-        },
-    })
+  const response = await fetch(url, {
+    ...options,
+    headers: {
+      ...getHeaders(),
+      ...options.headers,
+    },
+  })
 
-    const result = await response.json().catch(() => ({}))
+  const result = await response.json().catch(() => ({}))
 
-    if (!response.ok || result.success === false) {
-        if (response.status === 401 || response.status === 403) {
-            throw new Error(result.message || 'Your session may have expired. Please log in again.')
-        }
-
-        throw new Error(result.message || 'Something went wrong. Please try again.')
+  if (!response.ok || result.success === false) {
+    if (response.status === 401 || response.status === 403) {
+      throw new Error('Your session may have expired. Please log in again.')
     }
 
-    return result
+    throw new Error(result.message || 'Something went wrong. Please try again.')
+  }
+
+  return result
 }
 
-function Cart({ onBack }) {
-    const [cartItems, setCartItems] = useState([])
-    const [loading, setLoading] = useState(true)
-    const [error, setError] = useState('')
-    const [actionError, setActionError] = useState('')
-    const [busyItemId, setBusyItemId] = useState(null)
-    const [clearing, setClearing] = useState(false)
-    const [placingOrder, setPlacingOrder] = useState(false)
-    const [placedOrder, setPlacedOrder] = useState(null)
-    const [checkoutStage, setCheckoutStage] = useState('cart')
+function Cart({ onBack = () => {} }) {
+  const [cartItems, setCartItems] = useState([])
+  const [cartShop, setCartShop] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+  const [actionError, setActionError] = useState('')
+  const [busyItemId, setBusyItemId] = useState(null)
+  const [clearing, setClearing] = useState(false)
+  const [submittingOrder, setSubmittingOrder] = useState(false)
+  const [orderNotes, setOrderNotes] = useState('')
 
-    const loadCart = useCallback(async () => {
-        const result = await apiRequest('/api/cart')
-        const data = result.data || {}
+  // Checkout flow stages: 'cart' | 'checkout' | 'payment' | 'success'
+  const [checkoutStage, setCheckoutStage] = useState('cart')
+  const [paymentDetails, setPaymentDetails] = useState(null)
+  const [orderSuccess, setOrderSuccess] = useState(null)
+  const [completedItems, setCompletedItems] = useState([])
 
-        const items = (data.items || [])
-            .filter((item) => item.menuItemId)
-            .map((item) => ({
-                id: item._id,
-                menuItemId: item.menuItemId._id,
-                name: item.menuItemId.name,
-                category: item.menuItemId.category || 'Menu Item',
-                price: Number(item.price ?? item.menuItemId.price ?? 0),
-                quantity: item.quantity,
-            }))
+  let notifyOrderStatus = null
+  let refreshOrders = null
+  try {
+    const notifCtx = useOrderNotifications()
+    notifyOrderStatus = notifCtx.notifyOrderStatus
+    refreshOrders = notifCtx.refreshOrders
+  } catch {
+    // fallback if outside context
+  }
 
-        setCartItems(items)
-    }, [])
+  const loadCart = useCallback(async () => {
+    const result = await apiRequest('/api/cart')
+    const data = result.data || {}
 
-    useEffect(() => {
-        let cancelled = false
+    const rawItems = (data.items || []).filter((item) => item.menuItemId)
+    const firstShopId =
+      rawItems[0]?.menuItemId?.shopId?._id || rawItems[0]?.menuItemId?.shopId
 
-        async function fetchCart() {
-            setLoading(true)
-            setError('')
-
-            try {
-                await loadCart()
-            } catch (err) {
-                if (!cancelled) {
-                    setError(err.message || 'Unable to load your cart.')
-                }
-            } finally {
-                if (!cancelled) setLoading(false)
-            }
+    let resolvedShop = null
+    if (firstShopId) {
+      try {
+        const shopsRes = await fetch('/api/shops?limit=100')
+        const shopsData = await shopsRes.json()
+        if (shopsData.success && Array.isArray(shopsData.data)) {
+          resolvedShop =
+            shopsData.data.find(
+              (s) => String(s._id) === String(firstShopId)
+            ) || null
+          if (resolvedShop) {
+            setCartShop(resolvedShop)
+          }
         }
-
-        fetchCart()
-
-        return () => {
-            cancelled = true
-        }
-    }, [loadCart])
-
-    const performAction = async (itemId, action) => {
-        setBusyItemId(itemId)
-        setActionError('')
-
-        try {
-            await action()
-            await loadCart()
-        } catch (err) {
-            setActionError(err.message || 'Unable to update your cart.')
-        } finally {
-            setBusyItemId(null)
-        }
+      } catch (err) {
+        console.error('Failed to load shop details for cart:', err)
+      }
     }
 
-    const increaseQuantity = (item) => {
-        performAction(item.id, () =>
-            apiRequest('/api/cart/add', {
-                method: 'POST',
-                body: JSON.stringify({
-                    menuItemId: item.menuItemId,
-                    quantity: 1,
-                }),
-            }),
-        )
+    const items = rawItems.map((item) => ({
+      id: item._id,
+      menuItemId: item.menuItemId._id,
+      name: item.menuItemId.name,
+      category: item.menuItemId.category || 'Menu Item',
+      price: Number(item.price ?? item.menuItemId.price ?? 0),
+      quantity: item.quantity,
+      shopId: item.menuItemId.shopId,
+      shop: resolvedShop,
+    }))
+
+    setCartItems(items)
+  }, [])
+
+  useEffect(() => {
+    let cancelled = false
+
+    async function fetchCart() {
+      setLoading(true)
+      setError('')
+
+      try {
+        await loadCart()
+      } catch (err) {
+        if (!cancelled) {
+          setError(err.message || 'Unable to load your cart.')
+        }
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
     }
 
-    const decreaseQuantity = (item) => {
-        performAction(item.id, () => {
-            if (item.quantity <= 1) {
-                return apiRequest(`/api/cart/item/${item.id}`, {
-                    method: 'DELETE',
-                })
-            }
+    fetchCart()
 
-            return apiRequest(`/api/cart/item/${item.id}`, {
-                method: 'PATCH',
-                body: JSON.stringify({
-                    quantity: item.quantity - 1,
-                }),
-            })
+    return () => {
+      cancelled = true
+    }
+  }, [loadCart])
+
+  const performAction = async (itemId, action) => {
+    setBusyItemId(itemId)
+    setActionError('')
+
+    try {
+      await action()
+      await loadCart()
+    } catch (err) {
+      setActionError(err.message || 'Unable to update your cart.')
+    } finally {
+      setBusyItemId(null)
+    }
+  }
+
+  const increaseQuantity = (item) => {
+    performAction(item.id, () =>
+      apiRequest('/api/cart/add', {
+        method: 'POST',
+        body: JSON.stringify({
+          menuItemId: item.menuItemId,
+          quantity: 1,
+        }),
+      }),
+    )
+  }
+
+  const decreaseQuantity = (item) => {
+    performAction(item.id, () => {
+      if (item.quantity <= 1) {
+        return apiRequest(`/api/cart/item/${item.id}`, {
+          method: 'DELETE',
         })
-    }
+      }
 
-    const removeItem = (item) => {
-        performAction(item.id, () =>
-            apiRequest(`/api/cart/item/${item.id}`, {
-                method: 'DELETE',
-            }),
-        )
-    }
+      return apiRequest(`/api/cart/item/${item.id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({
+          quantity: item.quantity - 1,
+        }),
+      })
+    })
+  }
 
-    const clearCart = async () => {
-        setClearing(true)
-        setActionError('')
-
-        try {
-            await apiRequest('/api/cart', { method: 'DELETE' })
-            setCartItems([])
-        } catch (err) {
-            setActionError(err.message || 'Unable to clear your cart.')
-        } finally {
-            setClearing(false)
-        }
-    }
-
-    const handlePlaceOrder = async () => {
-        if (
-            placingOrder ||
-            clearing ||
-            busyItemId !== null ||
-            cartItems.length === 0
-        ) {
-            return
-        }
-
-        setPlacingOrder(true)
-        setActionError('')
-
-        try {
-            const result = await apiRequest('/api/orders', {
-                method: 'POST',
-                body: JSON.stringify({}),
-            })
-
-            setCartItems([])
-            setPlacedOrder(result.data || null)
-            setCheckoutStage('payment')
-        } catch (err) {
-            setActionError(err.message || 'Unable to place your order. Please try again.')
-        } finally {
-            setPlacingOrder(false)
-        }
-    }
-
-    const totalItems = useMemo(
-        () => cartItems.reduce((sum, item) => sum + item.quantity, 0),
-        [cartItems],
+  const removeItem = (item) => {
+    performAction(item.id, () =>
+      apiRequest(`/api/cart/item/${item.id}`, {
+        method: 'DELETE',
+      }),
     )
+  }
 
-    const totalAmount = useMemo(
-        () =>
-            cartItems.reduce(
-                (sum, item) => sum + item.price * item.quantity,
-                0,
-            ),
-        [cartItems],
-    )
+  const clearCartItems = async () => {
+    setClearing(true)
+    setActionError('')
 
-    return (
-        <main className="min-h-screen bg-[#f7f0e6] text-[#3f2720]">
-            <header className="border-b border-[#eadfd2] bg-white">
-                <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-5">
-                    <div>
-                        <p className="text-xs uppercase tracking-[0.25em] text-[#8b5e3c]">
-                            Checkout
-                        </p>
-                        <h1 className="text-2xl font-bold tracking-tight">Your Cart</h1>
-                    </div>
+    try {
+      await apiRequest('/api/cart', { method: 'DELETE' })
+      setCartItems([])
+    } catch (err) {
+      setActionError(err.message || 'Unable to clear your cart.')
+    } finally {
+      setClearing(false)
+    }
+  }
 
-                    <button
-                        type="button"
-                        onClick={onBack}
-                        className="rounded-xl border border-[#7b1e1e] px-5 py-2.5 text-sm font-semibold text-[#7b1e1e] transition hover:bg-[#7b1e1e] hover:text-white"
-                    >
-                        ← Back to Dashboard
-                    </button>
-                </div>
-            </header>
+  // Pricing calculations
+  const pricing = useMemo(
+    () => calculateOrderPricing(cartItems),
+    [cartItems],
+  )
 
-            <div className="mx-auto max-w-6xl px-6 py-10">
-                {actionError && (
-                    <div className="mb-6 rounded-2xl border border-red-200 bg-red-50 px-5 py-4 text-sm text-red-700">
-                        {actionError}
-                    </div>
-                )}
+  const { itemsCount, totalAmount } = pricing
 
-                {loading && (
-                    <div className="flex items-center gap-3 py-16">
-                        <div className="h-5 w-5 animate-spin rounded-full border-2 border-[#eadfd2] border-t-[#7b1e1e]" />
-                        <p className="text-sm text-gray-500">Loading your cart…</p>
-                    </div>
-                )}
+  // Places order from finalized cart, then transitions to payment choice step
+  const handlePlaceOrder = async () => {
+    setActionError('')
+    setSubmittingOrder(true)
 
-                {!loading && error && (
-                    <div className="rounded-2xl border border-red-200 bg-red-50 p-6">
-                        <h3 className="text-lg font-semibold text-red-700">
-                            Failed to load cart
-                        </h3>
-                        <p className="mt-1 text-sm text-red-600">{error}</p>
-                        <button
-                            type="button"
-                            onClick={loadCart}
-                            className="mt-4 rounded-xl bg-red-700 px-4 py-2 text-sm font-semibold text-white"
-                        >
-                            Try again
-                        </button>
-                    </div>
-                )}
+    try {
+      const result = await apiRequest('/api/orders', {
+        method: 'POST',
+        body: JSON.stringify({
+          notes: orderNotes.trim() || undefined,
+        }),
+      })
 
-                {!loading && !error && checkoutStage === 'payment' && placedOrder && (
-                    <div className="mx-auto max-w-2xl py-4">
-                        <UPIPaymentForm
-                            order={placedOrder}
-                            showCounterOption={true}
-                            onSuccess={(finalOrder) => {
-                                setPlacedOrder(finalOrder || placedOrder)
-                                setCheckoutStage('success')
-                            }}
-                            onCancel={() => {
-                                setCheckoutStage('success')
-                            }}
-                        />
-                    </div>
-                )}
+      const placedOrder = result.data || {}
 
-                {!loading && !error && checkoutStage === 'success' && placedOrder && (
-                    <div className="rounded-2xl border border-[#eadfd2] bg-white p-8 text-center shadow-sm">
-                        <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-[#f1e3d5] text-3xl">
-                            🎉
-                        </div>
-                        <h3 className="text-3xl font-bold text-[#3f2720]">Order Placed Successfully!</h3>
-                        <p className="mx-auto mt-2 max-w-lg text-gray-600">
-                            Your order has been received by the shop. Please show your order token at the counter for pickup.
-                        </p>
+      // Ensure shop object with upiId is attached to order data
+      let finalShop = cartShop
+      const targetShopId =
+        placedOrder.shopId?._id ||
+        placedOrder.shopId ||
+        cartItems[0]?.shopId?._id ||
+        cartItems[0]?.shopId
 
-                        <div className="mx-auto my-6 inline-block rounded-2xl border-2 border-dashed border-[#7b1e1e] bg-[#fffaf4] px-8 py-5">
-                            <p className="text-xs font-semibold uppercase tracking-widest text-[#8b5e3c]">
-                                Your Order Token
-                            </p>
-                            <p className="mt-1 font-mono text-3xl font-extrabold tracking-wider text-[#7b1e1e]">
-                                {placedOrder.orderToken}
-                            </p>
-                        </div>
+      if ((!finalShop || !finalShop.upiId) && targetShopId) {
+        try {
+          const shopsRes = await fetch('/api/shops?limit=100')
+          const shopsData = await shopsRes.json()
+          if (shopsData.success && Array.isArray(shopsData.data)) {
+            const matched = shopsData.data.find(
+              (s) => String(s._id) === String(targetShopId)
+            )
+            if (matched) {
+              finalShop = matched
+              setCartShop(matched)
+            }
+          }
+        } catch (err) {
+          console.error('Failed to load shop details during order placement:', err)
+        }
+      }
 
-                        {placedOrder.pickupToken && (
-                            <div className="mx-auto mb-6 max-w-sm rounded-xl border border-[#eadfd2] bg-[#fbf7f2] p-4 text-center">
-                                <p className="text-xs font-semibold uppercase tracking-widest text-[#8b5e3c]">
-                                    Pickup Token
-                                </p>
-                                <p className="mt-1 font-mono text-sm font-bold text-[#7b1e1e] break-all">
-                                    {placedOrder.pickupToken}
-                                </p>
-                            </div>
-                        )}
+      const shopObj =
+        finalShop ||
+        (typeof placedOrder.shopId === 'object' && placedOrder.shopId !== null
+          ? placedOrder.shopId
+          : { _id: targetShopId })
 
-                        <div className="mx-auto max-w-sm rounded-xl bg-[#f7f0e6] p-4 text-left text-sm text-gray-700">
-                            <div className="flex justify-between py-1">
-                                <span className="text-gray-500">Status</span>
-                                <span className="font-semibold capitalize text-amber-700">
-                                    {placedOrder.status || 'placed'}
-                                </span>
-                            </div>
-                            <div className="flex justify-between py-1">
-                                <span className="text-gray-500">Total Amount</span>
-                                <span className="font-bold text-[#7b1e1e]">
-                                    ₹{placedOrder.totalAmount}
-                                </span>
-                            </div>
-                            <div className="flex justify-between py-1">
-                                <span className="text-gray-500">Payment</span>
-                                <span className="font-semibold text-emerald-800">
-                                    {placedOrder.paymentMethod === 'upi'
-                                        ? `UPI (${placedOrder.paymentStatus === 'paid' ? 'Paid' : placedOrder.paymentStatus === 'rejected' ? 'Rejected' : 'Pending Verification'}${placedOrder.paymentUtr ? ` - UTR: ${placedOrder.paymentUtr}` : ''})`
-                                        : 'Pay at Counter'}
-                                </span>
-                            </div>
-                        </div>
+      placedOrder.shop = shopObj
+      placedOrder.shopId = shopObj
+      placedOrder.total = placedOrder.total ?? placedOrder.totalAmount ?? totalAmount
 
-                        <div className="mt-6 flex justify-center gap-4">
-                            <button
-                                type="button"
-                                onClick={() => {
-                                    setPlacedOrder(null)
-                                    setCheckoutStage('cart')
-                                    loadCart()
-                                }}
-                                className="rounded-xl border border-[#7b1e1e] px-6 py-3 font-semibold text-[#7b1e1e] transition hover:bg-[#7b1e1e] hover:text-white"
-                            >
-                                Order More
-                            </button>
-                            <button
-                                type="button"
-                                onClick={onBack}
-                                className="rounded-xl bg-[#7b1e1e] px-6 py-3 font-semibold text-white transition hover:bg-[#641818]"
-                            >
-                                Back to Dashboard
-                            </button>
-                        </div>
-                    </div>
-                )}
+      setOrderSuccess(placedOrder)
+      setCompletedItems([...cartItems])
+      setCartItems([])
+      setCheckoutStage('payment')
 
-                {!loading && !error && checkoutStage === 'cart' && cartItems.length === 0 && (
-                    <div className="rounded-2xl border border-dashed border-[#d9cabb] bg-[#fffaf4] p-12 text-center">
-                        <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-[#f1e3d5] text-2xl">
-                            🛒
-                        </div>
-                        <h3 className="text-xl font-bold">Your cart is empty</h3>
-                        <p className="mt-2 text-sm text-gray-500">
-                            Browse campus outlets and add items to your cart.
-                        </p>
-                        <button
-                            type="button"
-                            onClick={onBack}
-                            className="mt-6 rounded-xl bg-[#7b1e1e] px-6 py-3 text-sm font-semibold text-white transition hover:bg-[#641818]"
-                        >
-                            Browse Shops
-                        </button>
-                    </div>
-                )}
+      if (notifyOrderStatus && placedOrder._id) {
+        notifyOrderStatus(placedOrder)
+      }
+      if (refreshOrders) {
+        refreshOrders()
+      }
+    } catch (err) {
+      setActionError(err.message || 'Failed to place order. Please try again.')
+    } finally {
+      setSubmittingOrder(false)
+    }
+  }
 
-                {!loading && !error && checkoutStage === 'cart' && cartItems.length > 0 && (
-                    <div className="grid gap-8 lg:grid-cols-3">
-                        <section className="lg:col-span-2">
-                            <div className="flex items-center justify-between border-b border-[#eadfd2] pb-4">
-                                <p className="text-sm font-semibold uppercase tracking-widest text-[#8b5e3c]">
-                                    {totalItems} item{totalItems > 1 ? 's' : ''} in cart
-                                </p>
-                                <button
-                                    type="button"
-                                    disabled={clearing || placingOrder}
-                                    onClick={clearCart}
-                                    className="text-sm font-semibold text-red-600 hover:underline disabled:opacity-50"
-                                >
-                                    {clearing ? 'Clearing…' : 'Clear cart'}
-                                </button>
-                            </div>
+  // Action: Return to cart from checkout
+  const handleBackToCart = () => {
+    setCheckoutStage('cart')
+    setActionError('')
+  }
 
-                            <div className="mt-4 divide-y divide-[#eadfd2]">
-                                {cartItems.map((item) => (
-                                    <div key={item.id} className="py-4">
-                                        <div className="flex items-start justify-between gap-4">
-                                            <div>
-                                                <h4 className="font-bold text-[#3f2720]">
-                                                    {item.name}
-                                                </h4>
-                                                <p className="mt-0.5 text-xs text-gray-500">
-                                                    {item.category} • ₹{item.price} each
-                                                </p>
-                                            </div>
+  // Action: Start new order
+  const handleOrderMore = () => {
+    setCheckoutStage('cart')
+    setOrderSuccess(null)
+    setPaymentDetails(null)
+    setCompletedItems([])
+    loadCart()
+  }
 
-                                            <div className="flex items-center gap-4">
-                                                <div className="flex items-center rounded-xl border border-[#eadfd2] bg-white">
-                                                    <button
-                                                        type="button"
-                                                        disabled={busyItemId === item.id || placingOrder}
-                                                        onClick={() => decreaseQuantity(item)}
-                                                        className="px-3 py-2 text-lg font-semibold text-[#7b1e1e] hover:bg-[#f7f0e6] disabled:opacity-50"
-                                                    >
-                                                        −
-                                                    </button>
-                                                    <span className="w-8 text-center text-sm font-bold">
-                                                        {item.quantity}
-                                                    </span>
-                                                    <button
-                                                        type="button"
-                                                        disabled={busyItemId === item.id || placingOrder}
-                                                        onClick={() => increaseQuantity(item)}
-                                                        className="px-3 py-2 text-lg font-semibold text-[#7b1e1e] hover:bg-[#f7f0e6] disabled:opacity-50"
-                                                    >
-                                                        +
-                                                    </button>
-                                                </div>
+  return (
+    <main className="min-h-full bg-background text-text">
+      <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8 space-y-6 sm:space-y-8">
+        {/* Navigation back to Dashboard if handler provided */}
+        {onBack && (
+          <div>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={onBack}
+              className="gap-2"
+            >
+              ← Back to Dashboard
+            </Button>
+          </div>
+        )}
 
-                                                <div className="min-w-20 text-right">
-                                                    <p className="font-bold">
-                                                        ₹{item.price * item.quantity}
-                                                    </p>
-                                                    <button
-                                                        type="button"
-                                                        disabled={busyItemId === item.id || clearing || placingOrder}
-                                                        onClick={() => removeItem(item)}
-                                                        className="mt-1 text-xs font-semibold text-red-600 hover:underline disabled:opacity-50"
-                                                    >
-                                                        Remove
-                                                    </button>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        </section>
-
-                        <aside>
-                            <div className="sticky top-6 rounded-2xl border border-[#eadfd2] bg-white p-6 shadow-sm">
-                                <h3 className="text-2xl font-bold">Order Summary</h3>
-
-                                <div className="mt-6 space-y-4 text-sm">
-                                    <div className="flex justify-between">
-                                        <span className="text-gray-500">Items</span>
-                                        <span className="font-medium">{totalItems}</span>
-                                    </div>
-
-                                    <div className="flex justify-between">
-                                        <span className="text-gray-500">Subtotal</span>
-                                        <span className="font-medium">₹{totalAmount}</span>
-                                    </div>
-
-                                    <div className="flex justify-between">
-                                        <span className="text-gray-500">Service fee</span>
-                                        <span className="font-medium">₹0</span>
-                                    </div>
-
-                                    <div className="border-t border-[#eadfd2] pt-4">
-                                        <div className="flex justify-between">
-                                            <span className="text-lg font-bold">Total</span>
-                                            <span className="text-lg font-bold text-[#7b1e1e]">
-                                                ₹{totalAmount}
-                                            </span>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <button
-                                    type="button"
-                                    disabled={
-                                        cartItems.length === 0 ||
-                                        placingOrder ||
-                                        clearing ||
-                                        busyItemId !== null
-                                    }
-                                    onClick={handlePlaceOrder}
-                                    className="mt-6 flex w-full items-center justify-center rounded-xl bg-[#7b1e1e] px-5 py-3.5 font-semibold text-white transition hover:bg-[#641818] disabled:cursor-not-allowed disabled:opacity-50"
-                                >
-                                    {placingOrder ? (
-                                        <span className="flex items-center gap-2">
-                                            <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                                            Placing Order...
-                                        </span>
-                                    ) : (
-                                        'Place Order'
-                                    )}
-                                </button>
-                            </div>
-                        </aside>
-                    </div>
-                )}
+        {/* Global Action Error Alert */}
+        {actionError && (
+          <div
+            role="alert"
+            className="flex items-start justify-between gap-3 rounded-xl border border-danger/30 bg-danger/10 p-4 text-sm font-medium text-danger"
+          >
+            <div className="flex items-center gap-2">
+              <span aria-hidden="true">⚠️</span>
+              <span>{actionError}</span>
             </div>
-        </main>
-    )
+            <button
+              type="button"
+              onClick={() => setActionError('')}
+              className="cursor-pointer text-xs font-bold uppercase tracking-wider text-danger hover:underline"
+              aria-label="Dismiss error"
+            >
+              Dismiss
+            </button>
+          </div>
+        )}
+
+        {/* Loading State */}
+        {loading && (
+          <Card className="py-12 text-center">
+            <div className="inline-block h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent mb-3" />
+            <h3 className="text-base font-bold text-text">
+              Loading your cart...
+            </h3>
+            <p className="mt-1 text-xs text-muted-text">
+              Fetching your current order items and totals.
+            </p>
+          </Card>
+        )}
+
+        {/* Fetch Error State */}
+        {!loading && error && (
+          <Card className="border-danger/30 bg-danger/5 p-6 text-center sm:p-8">
+            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-danger/10 text-2xl mb-3 text-danger">
+              ⚠️
+            </div>
+            <h3 className="text-lg font-bold text-danger">
+              Unable to load your cart
+            </h3>
+            <p className="mt-1 text-sm text-muted-text max-w-md mx-auto">
+              {error}
+            </p>
+            <div className="mt-5 flex justify-center gap-3">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={async () => {
+                  setLoading(true)
+                  setError('')
+                  try {
+                    await loadCart()
+                  } catch (err) {
+                    setError(err.message || 'Unable to load your cart.')
+                  } finally {
+                    setLoading(false)
+                  }
+                }}
+              >
+                Try Again
+              </Button>
+              {onBack && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={onBack}
+                >
+                  Back to Dashboard
+                </Button>
+              )}
+            </div>
+          </Card>
+        )}
+
+        {/* Empty Cart State (when not in payment/success view) */}
+        {!loading &&
+          !error &&
+          checkoutStage === 'cart' &&
+          cartItems.length === 0 && (
+            <Card className="py-16 text-center">
+              <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10 text-3xl mb-4">
+                🛒
+              </div>
+              <h2 className="font-serif text-2xl font-bold text-text">
+                Your cart is empty
+              </h2>
+              <p className="mt-2 text-sm text-muted-text max-w-md mx-auto">
+                Looks like you haven&apos;t added any dishes or beverages yet. Explore
+                campus outlets to add your favorite items.
+              </p>
+              <div className="mt-6">
+                <Button
+                  type="button"
+                  variant="primary"
+                  size="md"
+                  onClick={onBack}
+                >
+                  Explore Campus Outlets
+                </Button>
+              </div>
+            </Card>
+          )}
+
+        {/* Step 4: Payment / Order Success Confirmation View */}
+        {!loading && checkoutStage === 'success' && orderSuccess && (
+          <PaymentSuccessView
+            order={orderSuccess}
+            paymentDetails={paymentDetails || {}}
+            items={completedItems}
+            onBack={onBack}
+            onReset={handleOrderMore}
+          />
+        )}
+
+        {/* Step 3: Payment Choice View (UPI or Counter) */}
+        {!loading && checkoutStage === 'payment' && orderSuccess && (
+          <div className="mx-auto max-w-2xl py-2 space-y-6">
+            {/* Progress Stepper showing Step 3 active */}
+            <nav
+              aria-label="Checkout Progress"
+              className="rounded-2xl border border-border bg-surface p-4 sm:p-5 shadow-xs"
+            >
+              <ol className="flex items-center justify-between max-w-xl mx-auto text-xs sm:text-sm font-semibold">
+                <li className="flex items-center gap-2 text-muted-text">
+                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-primary/10 text-primary text-xs font-bold">
+                    ✓
+                  </span>
+                  <span>Review Cart</span>
+                </li>
+
+                <li className="text-border font-bold">——</li>
+
+                <li className="flex items-center gap-2 text-muted-text">
+                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-primary/10 text-primary text-xs font-bold">
+                    ✓
+                  </span>
+                  <span>Review &amp; Place</span>
+                </li>
+
+                <li className="text-border font-bold">——</li>
+
+                <li className="flex items-center gap-2 text-primary font-bold">
+                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-primary text-white text-xs font-bold">
+                    3
+                  </span>
+                  <span>Payment</span>
+                </li>
+              </ol>
+            </nav>
+
+            <UPIPaymentForm
+              order={orderSuccess}
+              shop={cartShop || orderSuccess.shop || orderSuccess.shopId}
+              showCounterOption={true}
+              onSuccess={(finalOrder) => {
+                const updated = finalOrder || orderSuccess
+                setOrderSuccess(updated)
+                setPaymentDetails({
+                  method:
+                    updated.paymentMethod === 'upi'
+                      ? 'UPI Manual Verification'
+                      : 'Pay at Counter',
+                  amount: updated.totalAmount ?? totalAmount,
+                  utr: updated.paymentUtr,
+                })
+                setCheckoutStage('success')
+                if (refreshOrders) refreshOrders()
+              }}
+              onCancel={() => {
+                // Counter payment fallback
+                setPaymentDetails({
+                  method: 'Pay at Counter',
+                  amount: orderSuccess.totalAmount ?? totalAmount,
+                })
+                setCheckoutStage('success')
+              }}
+            />
+          </div>
+        )}
+
+        {/* Step 1 & Step 2: Cart Review & Checkout Place View */}
+        {!loading &&
+          !error &&
+          (checkoutStage === 'cart' || checkoutStage === 'checkout') &&
+          cartItems.length > 0 && (
+            <div className="space-y-6">
+              {/* Checkout Progress Stepper */}
+              <nav
+                aria-label="Checkout Progress"
+                className="rounded-2xl border border-border bg-surface p-4 sm:p-5 shadow-xs"
+              >
+                <ol className="flex items-center justify-between max-w-xl mx-auto text-xs sm:text-sm font-semibold">
+                  <li className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={handleBackToCart}
+                      className={`cursor-pointer flex items-center gap-2 ${
+                        checkoutStage === 'cart'
+                          ? 'text-primary font-bold'
+                          : 'text-muted-text hover:text-text'
+                      }`}
+                    >
+                      <span
+                        className={`flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold ${
+                          checkoutStage === 'cart'
+                            ? 'bg-primary text-white'
+                            : 'bg-primary/10 text-primary'
+                        }`}
+                      >
+                        1
+                      </span>
+                      <span>Review Cart</span>
+                    </button>
+                  </li>
+
+                  <li className="text-border font-bold">——</li>
+
+                  <li className="flex items-center gap-2">
+                    <div
+                      className={`flex items-center gap-2 ${
+                        checkoutStage === 'checkout'
+                          ? 'text-primary font-bold'
+                          : 'text-muted-text'
+                      }`}
+                    >
+                      <span
+                        className={`flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold ${
+                          checkoutStage === 'checkout'
+                            ? 'bg-primary text-white'
+                            : 'border border-border text-muted-text'
+                        }`}
+                      >
+                        2
+                      </span>
+                      <span>Review &amp; Place</span>
+                    </div>
+                  </li>
+
+                  <li className="text-border font-bold">——</li>
+
+                  <li className="flex items-center gap-2 text-muted-text/60">
+                    <span className="flex h-6 w-6 items-center justify-center rounded-full text-xs border border-border">
+                      3
+                    </span>
+                    <span className="hidden sm:inline">Payment</span>
+                  </li>
+                </ol>
+              </nav>
+
+              {/* View 1: Review Cart Mode */}
+              {checkoutStage === 'cart' && (
+                <div className="grid gap-8 lg:grid-cols-[1fr_380px]">
+                  {/* Left Column: Cart Items List */}
+                  <section
+                    aria-labelledby="cart-items-heading"
+                    className="space-y-4"
+                  >
+                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                      <div>
+                        <h2
+                          id="cart-items-heading"
+                          className="text-xl font-bold text-text"
+                        >
+                          Selected Items
+                        </h2>
+                        <p className="text-xs text-muted-text">
+                          {itemsCount} {itemsCount === 1 ? 'item' : 'items'} in
+                          your cart
+                        </p>
+                      </div>
+
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        disabled={
+                          clearing || busyItemId !== null || submittingOrder
+                        }
+                        onClick={clearCartItems}
+                        className="text-danger border-danger/30 hover:bg-danger hover:text-white"
+                      >
+                        {clearing ? 'Clearing...' : 'Clear Cart'}
+                      </Button>
+                    </div>
+
+                    {/* Items List */}
+                    <div className="space-y-3">
+                      {cartItems.map((item) => (
+                        <Card
+                          key={item.id}
+                          className="transition-all hover:border-primary/40 hover:shadow-md"
+                        >
+                          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                            {/* Item Details */}
+                            <div className="min-w-0 flex-1">
+                              <div className="flex flex-wrap items-center gap-2">
+                                <h3 className="text-base font-bold text-text truncate">
+                                  {item.name}
+                                </h3>
+                                {item.category && (
+                                  <Badge variant="default" size="sm">
+                                    {item.category}
+                                  </Badge>
+                                )}
+                              </div>
+                              <p className="mt-1 text-xs text-muted-text">
+                                {formatCurrency(item.price)} each
+                              </p>
+                            </div>
+
+                            {/* Item Stepper & Price & Actions */}
+                            <div className="flex flex-wrap items-center justify-between gap-4 sm:justify-end">
+                              {/* Quantity Stepper */}
+                              <div className="flex items-center rounded-xl border border-border bg-background">
+                                <button
+                                  type="button"
+                                  disabled={
+                                    busyItemId === item.id ||
+                                    clearing ||
+                                    submittingOrder
+                                  }
+                                  onClick={() => decreaseQuantity(item)}
+                                  aria-label={`Decrease ${item.name} quantity`}
+                                  className="cursor-pointer flex h-8 w-8 items-center justify-center text-base font-bold text-text transition-colors hover:bg-surface hover:text-primary disabled:cursor-not-allowed disabled:opacity-50"
+                                >
+                                  −
+                                </button>
+
+                                <span className="min-w-9 text-center text-sm font-bold text-text">
+                                  {item.quantity}
+                                </span>
+
+                                <button
+                                  type="button"
+                                  disabled={
+                                    busyItemId === item.id ||
+                                    clearing ||
+                                    submittingOrder
+                                  }
+                                  onClick={() => increaseQuantity(item)}
+                                  aria-label={`Increase ${item.name} quantity`}
+                                  className="cursor-pointer flex h-8 w-8 items-center justify-center text-base font-bold text-text transition-colors hover:bg-surface hover:text-primary disabled:cursor-not-allowed disabled:opacity-50"
+                                >
+                                  +
+                                </button>
+                              </div>
+
+                              {/* Item Total Price */}
+                              <div className="min-w-16 text-right font-bold text-primary">
+                                {formatCurrency(item.price * item.quantity)}
+                              </div>
+
+                              {/* Remove Action */}
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                disabled={
+                                  busyItemId === item.id ||
+                                  clearing ||
+                                  submittingOrder
+                                }
+                                onClick={() => removeItem(item)}
+                                className="border-danger/30 text-danger hover:bg-danger hover:text-white"
+                                aria-label={`Remove ${item.name} from cart`}
+                              >
+                                Remove
+                              </Button>
+                            </div>
+                          </div>
+                        </Card>
+                      ))}
+                    </div>
+
+                    {/* Special Instructions Input */}
+                    <Card className="mt-6">
+                      <div className="space-y-3">
+                        <div>
+                          <h3 className="text-sm font-bold text-text">
+                            Special Instructions (Optional)
+                          </h3>
+                          <p className="text-xs text-muted-text">
+                            Dietary requests or pickup instructions for the
+                            campus outlet staff.
+                          </p>
+                        </div>
+                        <Input
+                          id="cart-order-notes"
+                          placeholder="e.g., Less spicy, no onions, extra napkins..."
+                          value={orderNotes}
+                          onChange={(e) => setOrderNotes(e.target.value)}
+                          disabled={submittingOrder || clearing}
+                        />
+                      </div>
+                    </Card>
+                  </section>
+
+                  {/* Right Column: Order Summary & Proceed to Checkout */}
+                  <aside aria-labelledby="order-summary-heading">
+                    <div className="sticky top-6">
+                      <Card>
+                        <h2
+                          id="order-summary-heading"
+                          className="text-xl font-bold text-text"
+                        >
+                          Order Summary
+                        </h2>
+
+                        <div className="mt-5 space-y-3.5 text-sm">
+                          <div className="flex items-center justify-between">
+                            <span className="text-muted-text">Items count</span>
+                            <span className="font-medium text-text">
+                              {itemsCount} {itemsCount === 1 ? 'item' : 'items'}
+                            </span>
+                          </div>
+
+                          <div className="flex items-center justify-between">
+                            <span className="text-muted-text">Subtotal</span>
+                            <span className="font-medium text-text">
+                              {formatCurrency(totalAmount)}
+                            </span>
+                          </div>
+
+                          <div className="flex items-center justify-between">
+                            <span className="text-muted-text">
+                              Campus service fee
+                            </span>
+                            <span className="font-medium text-success">
+                              FREE
+                            </span>
+                          </div>
+
+                          <div className="flex items-center justify-between">
+                            <span className="text-muted-text">
+                              Packaging &amp; pickup
+                            </span>
+                            <span className="font-medium text-success">
+                              FREE
+                            </span>
+                          </div>
+
+                          <div className="border-t border-border pt-4">
+                            <div className="flex items-center justify-between">
+                              <span className="text-base font-bold text-text">
+                                Total
+                              </span>
+                              <span className="text-2xl font-bold text-primary">
+                                {formatCurrency(totalAmount)}
+                              </span>
+                            </div>
+                            <p className="mt-1 text-xs text-muted-text">
+                              Inclusive of all campus taxes
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="mt-6 space-y-3">
+                          <Button
+                            type="button"
+                            variant="primary"
+                            size="lg"
+                            fullWidth
+                            disabled={cartItems.length === 0}
+                            onClick={() => setCheckoutStage('checkout')}
+                          >
+                            Proceed to Checkout →
+                          </Button>
+
+                          <p className="text-center text-xs text-muted-text leading-relaxed">
+                            Review items and choose payment in the next step.
+                          </p>
+                        </div>
+                      </Card>
+                    </div>
+                  </aside>
+                </div>
+              )}
+
+              {/* View 2: Review & Place Order View */}
+              {checkoutStage === 'checkout' && (
+                <div className="grid gap-8 lg:grid-cols-[1fr_400px]">
+                  {/* Left Column: Breakdown & Next Step Notice */}
+                  <div className="space-y-6">
+                    <CheckoutSummary
+                      items={cartItems}
+                      pricing={pricing}
+                      orderNotes={orderNotes}
+                    />
+
+                    {/* Payment Step Info Notice */}
+                    <Card>
+                      <div className="flex items-center justify-between border-b border-border pb-3">
+                        <div>
+                          <h3 className="text-base font-bold text-text">
+                            Payment Options
+                          </h3>
+                          <p className="text-xs text-muted-text">
+                            Selected after placing your order in the next step
+                          </p>
+                        </div>
+                        <Badge variant="default" size="sm">
+                          Step 3 of 3
+                        </Badge>
+                      </div>
+
+                      <div className="mt-4 grid gap-3 sm:grid-cols-2 text-xs">
+                        <div className="rounded-xl border border-border bg-surface p-3.5 space-y-1">
+                          <div className="flex items-center gap-2">
+                            <span className="text-lg">📱</span>
+                            <span className="font-bold text-text">
+                              Instant UPI
+                            </span>
+                          </div>
+                          <p className="text-muted-text text-[11px] leading-relaxed">
+                            Scan the outlet QR code with any UPI app and enter the 12-digit UTR proof.
+                          </p>
+                        </div>
+
+                        <div className="rounded-xl border border-border bg-surface p-3.5 space-y-1">
+                          <div className="flex items-center gap-2">
+                            <span className="text-lg">🏪</span>
+                            <span className="font-bold text-text">
+                              Pay at Counter
+                            </span>
+                          </div>
+                          <p className="text-muted-text text-[11px] leading-relaxed">
+                            Pay with cash, card, or UPI directly at the outlet counter upon pickup.
+                          </p>
+                        </div>
+                      </div>
+                    </Card>
+
+                    {/* Back to Cart Action */}
+                    <div className="flex justify-start">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="md"
+                        onClick={handleBackToCart}
+                        className="gap-2"
+                      >
+                        ← Back to Cart (Edit items)
+                      </Button>
+                    </div>
+                  </div>
+
+                  {/* Right Column: Checkout Summary & Place Order Action */}
+                  <aside aria-labelledby="checkout-action-heading">
+                    <div className="sticky top-6">
+                      <Card>
+                        <h2
+                          id="checkout-action-heading"
+                          className="text-xl font-bold text-text"
+                        >
+                          Checkout Summary
+                        </h2>
+
+                        <div className="mt-5 space-y-3.5 text-sm">
+                          <div className="flex items-center justify-between">
+                            <span className="text-muted-text">Items count</span>
+                            <span className="font-medium text-text">
+                              {itemsCount} {itemsCount === 1 ? 'item' : 'items'}
+                            </span>
+                          </div>
+
+                          <div className="flex items-center justify-between">
+                            <span className="text-muted-text">Subtotal</span>
+                            <span className="font-medium text-text">
+                              {formatCurrency(totalAmount)}
+                            </span>
+                          </div>
+
+                          <div className="flex items-center justify-between">
+                            <span className="text-muted-text">
+                              Pickup &amp; Packaging
+                            </span>
+                            <span className="font-semibold text-success">
+                              FREE
+                            </span>
+                          </div>
+
+                          <div className="border-t border-border pt-4">
+                            <div className="flex items-center justify-between">
+                              <span className="text-base font-bold text-text">
+                                Total to Pay
+                              </span>
+                              <span className="text-2xl font-bold text-primary">
+                                {formatCurrency(totalAmount)}
+                              </span>
+                            </div>
+                            <p className="mt-1 text-xs text-muted-text">
+                              Includes all applicable campus fees
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* Place Order Button */}
+                        <div className="mt-6">
+                          <Button
+                            type="button"
+                            variant="primary"
+                            size="lg"
+                            fullWidth
+                            disabled={cartItems.length === 0 || submittingOrder}
+                            loading={submittingOrder}
+                            onClick={handlePlaceOrder}
+                          >
+                            {submittingOrder ? 'Placing Order...' : 'Place Order →'}
+                          </Button>
+                        </div>
+
+                        <div className="mt-4 pt-4 border-t border-border text-center space-y-2">
+                          <button
+                            type="button"
+                            onClick={handleBackToCart}
+                            className="cursor-pointer text-xs text-muted-text hover:text-primary hover:underline font-medium"
+                          >
+                            ← Need to modify items? Return to Cart
+                          </button>
+                        </div>
+                      </Card>
+                    </div>
+                  </aside>
+                </div>
+              )}
+            </div>
+          )}
+      </div>
+    </main>
+  )
 }
 
 export default Cart

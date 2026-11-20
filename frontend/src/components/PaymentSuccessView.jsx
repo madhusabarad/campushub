@@ -77,6 +77,29 @@ export default function PaymentSuccessView({
           {descriptionText}
         </p>
 
+        {/* Order Token & Pickup Token Prominently Displayed */}
+        {order.orderToken && (
+          <div className="mx-auto my-5 inline-block rounded-2xl border-2 border-dashed border-primary bg-primary/5 px-8 py-4">
+            <p className="text-xs font-semibold uppercase tracking-widest text-accent">
+              Your Order Token
+            </p>
+            <p className="mt-1 font-mono text-3xl font-extrabold tracking-wider text-primary">
+              {order.orderToken}
+            </p>
+          </div>
+        )}
+
+        {order.pickupToken && (
+          <div className="mx-auto mb-4 max-w-sm rounded-xl border border-border bg-background/60 p-3 text-center">
+            <p className="text-xs font-semibold uppercase tracking-widest text-muted-text">
+              Pickup Token
+            </p>
+            <p className="mt-1 font-mono text-sm font-bold text-primary break-all">
+              {order.pickupToken}
+            </p>
+          </div>
+        )}
+
         {/* Payment Receipt Summary Card */}
         <div className="mx-auto my-6 max-w-md rounded-2xl border border-border bg-background/50 p-4 text-xs space-y-2.5 text-left shadow-xs">
           <div className="flex items-center justify-between border-b border-border/60 pb-2">
@@ -87,6 +110,24 @@ export default function PaymentSuccessView({
               {badgeText}
             </Badge>
           </div>
+
+          {order.orderToken && (
+            <div className="flex items-center justify-between">
+              <span className="text-muted-text">Order Token:</span>
+              <span className="font-mono font-bold text-primary">
+                {order.orderToken}
+              </span>
+            </div>
+          )}
+
+          {order.pickupToken && (
+            <div className="flex items-center justify-between">
+              <span className="text-muted-text">Pickup Token:</span>
+              <span className="font-mono font-semibold text-text">
+                {order.pickupToken}
+              </span>
+            </div>
+          )}
 
           <div className="flex items-center justify-between">
             <span className="text-muted-text">Order / Reference:</span>
