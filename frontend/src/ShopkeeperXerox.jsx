@@ -76,37 +76,37 @@ function ShopkeeperXerox() {
   };
 
   if (loading) {
-    return <p className="p-8">Loading Xerox requests...</p>;
+    return <p className="p-8 text-muted-text">Loading Xerox requests...</p>;
   }
 
   return (
-    <div className="min-h-screen bg-[#f8f3ed] p-6">
+    <div className="min-h-screen bg-background text-text p-6">
       <div className="mx-auto max-w-5xl">
-        <h1 className="mb-2 text-3xl font-bold text-[#7b1e1e]">
+        <h1 className="mb-2 text-3xl font-bold text-primary">
           Xerox Request Management
         </h1>
 
-        <p className="mb-6 text-gray-600">
+        <p className="mb-6 text-muted-text">
           View and manage student printing requests.
         </p>
 
         <button
           onClick={loadRequests}
-          className="mb-5 rounded-lg bg-[#7b1e1e] px-4 py-2 text-white"
+          className="mb-5 rounded-lg bg-primary hover:bg-primary-hover px-4 py-2 font-semibold text-white transition cursor-pointer"
         >
           Refresh Requests
         </button>
 
         {message && (
-          <p className="mb-4 text-green-700">{message}</p>
+          <p className="mb-4 rounded-xl border border-green-300 bg-green-50 px-4 py-3 text-sm text-green-800 dark:border-green-800 dark:bg-green-950/40 dark:text-green-300">{message}</p>
         )}
 
         {error && (
-          <p className="mb-4 text-red-600">{error}</p>
+          <p className="mb-4 rounded-xl border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-800 dark:border-red-800 dark:bg-red-950/40 dark:text-red-300">{error}</p>
         )}
 
         {requests.length === 0 ? (
-          <p className="rounded-xl bg-white p-6">
+          <p className="rounded-xl border border-border bg-surface p-6 text-muted-text">
             No Xerox requests found.
           </p>
         ) : (
@@ -114,37 +114,37 @@ function ShopkeeperXerox() {
             {requests.map((request) => (
               <div
                 key={request._id}
-                className="rounded-xl bg-white p-5 shadow"
+                className="rounded-xl border border-border bg-surface p-5 shadow text-text"
               >
-                <h2 className="mb-2 text-lg font-bold">
+                <h2 className="mb-2 text-lg font-bold text-text">
                   Xerox Request
                 </h2>
 
-                <p>
-                  <strong>Request ID:</strong> #{request._id.slice(-6).toUpperCase()}
+                <p className="text-muted-text">
+                  <strong className="text-text">Request ID:</strong> #{request._id.slice(-6).toUpperCase()}
                 </p>
-                <p>
-                  <strong>Status:</strong> {request.status}
+                <p className="text-muted-text">
+                  <strong className="text-text">Status:</strong>{' '}
+                  <span className="capitalize font-semibold text-text">{request.status}</span>
                 </p>
-                <p>
-                  <strong>Copies:</strong> {request.numberOfCopies}
+                <p className="text-muted-text">
+                  <strong className="text-text">Copies:</strong> {request.numberOfCopies}
                 </p>
-                <p>
-                  <strong>Print Mode:</strong> {request.colorMode}
+                <p className="text-muted-text">
+                  <strong className="text-text">Print Mode:</strong> {request.colorMode}
                 </p>
-                <p>
-                  <strong>Print Sides:</strong> {request.printSides}
+                <p className="text-muted-text">
+                  <strong className="text-text">Print Sides:</strong> {request.printSides}
                 </p>
-                <p>
-                  <strong>Paper Size:</strong> {request.paperSize}
+                <p className="text-muted-text">
+                  <strong className="text-text">Paper Size:</strong> {request.paperSize}
                 </p>
-                <p>
-                  <strong>Estimated Price:</strong> ₹
-                  {request.estimatedPrice ?? request.totalPrice ?? '—'}
+                <p className="text-muted-text">
+                  <strong className="text-text">Estimated Price:</strong> <span className="font-bold text-primary">₹{request.estimatedPrice ?? request.totalPrice ?? '—'}</span>
                 </p>
-                <p>
-                  <strong>Payment Status:</strong>{' '}
-                  {request.paymentStatus || 'Not specified'}
+                <p className="text-muted-text">
+                  <strong className="text-text">Payment Status:</strong>{' '}
+                  <span className="capitalize font-semibold text-text">{request.paymentStatus || 'Not specified'}</span>
                 </p>
 
                 <div className="mt-4 flex flex-wrap gap-3">
@@ -154,7 +154,7 @@ function ShopkeeperXerox() {
                       onClick={() =>
                         changeStatus(request._id, action.status)
                       }
-                      className="rounded-lg bg-[#7b1e1e] px-4 py-2 text-white"
+                      className="rounded-lg bg-primary hover:bg-primary-hover px-4 py-2 font-semibold text-white transition cursor-pointer"
                     >
                       {action.label}
                     </button>
@@ -164,7 +164,7 @@ function ShopkeeperXerox() {
                     request.paymentStatus !== 'paid' && (
                       <button
                         onClick={() => markPayment(request._id)}
-                        className="rounded-lg bg-green-700 px-4 py-2 text-white"
+                        className="rounded-lg bg-emerald-700 hover:bg-emerald-800 px-4 py-2 font-semibold text-white transition cursor-pointer"
                       >
                         Mark Payment Paid
                       </button>

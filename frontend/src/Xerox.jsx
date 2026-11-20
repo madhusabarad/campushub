@@ -17,13 +17,13 @@ const DEFAULT_RATES = {
 }
 
 const STATUS_BADGES = {
-    pending: 'bg-amber-100 text-amber-800 border-amber-200',
-    accepted: 'bg-blue-100 text-blue-800 border-blue-200',
-    printing: 'bg-indigo-100 text-indigo-800 border-indigo-200',
-    'ready-for-pickup': 'bg-emerald-100 text-emerald-800 border-emerald-200',
-    completed: 'bg-green-100 text-green-800 border-green-200',
-    rejected: 'bg-red-100 text-red-800 border-red-200',
-    cancelled: 'bg-gray-100 text-gray-700 border-gray-200',
+    pending: 'bg-amber-100 text-amber-800 border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800',
+    accepted: 'bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-800',
+    printing: 'bg-indigo-100 text-indigo-800 border-indigo-200 dark:bg-indigo-950/40 dark:text-indigo-300 dark:border-indigo-800',
+    'ready-for-pickup': 'bg-emerald-100 text-emerald-800 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800',
+    completed: 'bg-green-100 text-green-800 border-green-200 dark:bg-green-950/40 dark:text-green-300 dark:border-green-800',
+    rejected: 'bg-red-100 text-red-800 border-red-200 dark:bg-red-950/40 dark:text-red-300 dark:border-red-800',
+    cancelled: 'bg-gray-100 text-gray-700 border-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-700',
 }
 
 function Xerox({ onBack, userRole = 'student' }) {
@@ -261,7 +261,7 @@ function Xerox({ onBack, userRole = 'student' }) {
     }
 
     return (
-        <div className="min-h-screen bg-[#f7f0e6] pb-16 pt-8 px-4 sm:px-6 lg:px-8">
+        <div className="min-h-screen bg-background text-text pb-16 pt-8 px-4 sm:px-6 lg:px-8">
             <div className="mx-auto max-w-5xl">
                 {/* Header & Back Button */}
                 <div className="mb-8 flex items-center justify-between">
@@ -269,21 +269,21 @@ function Xerox({ onBack, userRole = 'student' }) {
                         <button
                             type="button"
                             onClick={onBack}
-                            className="inline-flex items-center gap-2 rounded-xl bg-white px-4 py-2 text-sm font-semibold text-[#7b1e1e] shadow-sm transition hover:bg-stone-50"
+                            className="inline-flex items-center gap-2 rounded-xl border border-border bg-surface px-4 py-2 text-sm font-semibold text-primary shadow-sm transition hover:bg-background cursor-pointer"
                         >
                             ← Back to Dashboard
                         </button>
-                        <h1 className="mt-4 text-3xl font-extrabold tracking-tight text-[#3f2720] sm:text-4xl">
+                        <h1 className="mt-4 text-3xl font-extrabold tracking-tight text-text sm:text-4xl">
                             Xerox &amp; Printing Service
                         </h1>
-                        <p className="mt-1 text-sm text-stone-600">
+                        <p className="mt-1 text-sm text-muted-text">
                             Upload documents, configure your print settings, get instant price estimates, and place your order.
                         </p>
                     </div>
                 </div>
 
                 {!isStudent && (
-                    <div className="mb-6 rounded-2xl border border-amber-200 bg-amber-50 p-5 text-sm text-amber-900">
+                    <div className="mb-6 rounded-2xl border border-amber-300 bg-amber-50 p-5 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200">
                         <p className="font-semibold">Notice for Faculty &amp; Staff:</p>
                         <p className="mt-1">
                             Xerox and printing request submission is currently restricted to registered students. You may view service rates and options below.
@@ -293,40 +293,40 @@ function Xerox({ onBack, userRole = 'student' }) {
 
                 {/* Success Order Confirmation Banner */}
                 {submittedOrder && (
-                    <div className="mb-8 rounded-2xl border border-emerald-200 bg-emerald-50 p-6 text-emerald-950 shadow-sm">
+                    <div className="mb-8 rounded-2xl border border-emerald-300 bg-emerald-50 p-6 text-emerald-950 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-200 shadow-sm">
                         <div className="flex items-start justify-between">
                             <div>
                                 <div className="flex items-center gap-2">
                                     <span className="text-2xl">✓</span>
-                                    <h3 className="text-lg font-bold text-emerald-900">
+                                    <h3 className="text-lg font-bold text-emerald-900 dark:text-emerald-200">
                                         Xerox Request Submitted Successfully!
                                     </h3>
                                 </div>
-                                <p className="mt-2 text-sm text-emerald-800">
+                                <p className="mt-2 text-sm text-emerald-800 dark:text-emerald-300">
                                     Your request has been queued for printing. You can track its status below.
                                 </p>
                                 <div className="mt-4 grid grid-cols-2 gap-4 text-xs sm:grid-cols-4">
-                                    <div className="rounded-xl bg-white/80 p-3">
-                                        <p className="text-stone-500 uppercase tracking-wider">Request ID</p>
-                                        <p className="font-bold text-[#3f2720]">
+                                    <div className="rounded-xl border border-border bg-surface p-3">
+                                        <p className="text-muted-text uppercase tracking-wider">Request ID</p>
+                                        <p className="font-bold text-text">
                                             {submittedOrder._id ? submittedOrder._id.slice(-8).toUpperCase() : 'PENDING'}
                                         </p>
                                     </div>
-                                    <div className="rounded-xl bg-white/80 p-3">
-                                        <p className="text-stone-500 uppercase tracking-wider">Estimated Price</p>
-                                        <p className="font-bold text-[#7b1e1e]">
+                                    <div className="rounded-xl border border-border bg-surface p-3">
+                                        <p className="text-muted-text uppercase tracking-wider">Estimated Price</p>
+                                        <p className="font-bold text-primary">
                                             ₹{submittedOrder.estimatedPrice}
                                         </p>
                                     </div>
-                                    <div className="rounded-xl bg-white/80 p-3">
-                                        <p className="text-stone-500 uppercase tracking-wider">Payment Method</p>
-                                        <p className="font-bold capitalize text-[#3f2720]">
+                                    <div className="rounded-xl border border-border bg-surface p-3">
+                                        <p className="text-muted-text uppercase tracking-wider">Payment Method</p>
+                                        <p className="font-bold capitalize text-text">
                                             {submittedOrder.paymentMethod} ({submittedOrder.paymentStatus || 'pending'})
                                         </p>
                                     </div>
-                                    <div className="rounded-xl bg-white/80 p-3">
-                                        <p className="text-stone-500 uppercase tracking-wider">Status</p>
-                                        <span className="inline-block mt-0.5 rounded-md bg-amber-100 px-2 py-0.5 font-semibold text-amber-800 uppercase text-[10px]">
+                                    <div className="rounded-xl border border-border bg-surface p-3">
+                                        <p className="text-muted-text uppercase tracking-wider">Status</p>
+                                        <span className="inline-block mt-0.5 rounded-md bg-amber-100 dark:bg-amber-950/60 dark:text-amber-300 dark:border dark:border-amber-800 px-2 py-0.5 font-semibold text-amber-800 uppercase text-[10px]">
                                             {submittedOrder.status || 'pending'}
                                         </span>
                                     </div>
@@ -335,7 +335,7 @@ function Xerox({ onBack, userRole = 'student' }) {
                             <button
                                 type="button"
                                 onClick={() => setSubmittedOrder(null)}
-                                className="text-xs text-stone-500 hover:text-stone-800"
+                                className="text-xs text-muted-text hover:text-text cursor-pointer"
                             >
                                 Dismiss
                             </button>
@@ -347,11 +347,11 @@ function Xerox({ onBack, userRole = 'student' }) {
                     {/* Main Form */}
                     <form onSubmit={handleSubmit} className="space-y-6 lg:col-span-2">
                         {/* 1. Document Upload Card */}
-                        <div className="rounded-2xl border border-[#eadfd2] bg-white p-6 shadow-sm">
-                            <h2 className="text-lg font-bold text-[#3f2720]">
+                        <div className="rounded-2xl border border-border bg-surface p-6 shadow-sm">
+                            <h2 className="text-lg font-bold text-text">
                                 1. Upload PDF Document
                             </h2>
-                            <p className="text-xs text-stone-500 mt-0.5">
+                            <p className="text-xs text-muted-text mt-0.5">
                                 Only PDF files up to {rates.maximumUploadSizeMB || 10} MB are accepted.
                             </p>
 
@@ -359,15 +359,15 @@ function Xerox({ onBack, userRole = 'student' }) {
                                 <label
                                     htmlFor="document-upload"
                                     className={`flex flex-col items-center justify-center rounded-2xl border-2 border-dashed p-6 text-center cursor-pointer transition ${file
-                                        ? 'border-emerald-400 bg-emerald-50/40'
-                                        : 'border-stone-300 bg-stone-50/50 hover:bg-stone-100/60'
+                                        ? 'border-emerald-500 bg-emerald-500/10'
+                                        : 'border-border bg-surface-muted/30 hover:bg-surface-hover'
                                         }`}
                                 >
                                     <div className="text-3xl">📄</div>
-                                    <p className="mt-2 text-sm font-semibold text-[#3f2720]">
+                                    <p className="mt-2 text-sm font-semibold text-text">
                                         {file ? file.name : 'Click to select or drop your PDF document here'}
                                     </p>
-                                    <p className="mt-1 text-xs text-stone-500">
+                                    <p className="mt-1 text-xs text-muted-text">
                                         {file
                                             ? `${(file.size / (1024 * 1024)).toFixed(2)} MB · Ready for upload`
                                             : 'Accepts .pdf files only (Max 10 MB)'}
@@ -383,7 +383,7 @@ function Xerox({ onBack, userRole = 'student' }) {
                                 </label>
 
                                 {fileError && (
-                                    <p className="mt-2 text-xs font-semibold text-red-600">
+                                    <p className="mt-2 text-xs font-semibold text-danger">
                                         ⚠ {fileError}
                                     </p>
                                 )}
@@ -391,24 +391,24 @@ function Xerox({ onBack, userRole = 'student' }) {
                         </div>
 
                         {/* 2. Print Configuration Card */}
-                        <div className="rounded-2xl border border-[#eadfd2] bg-white p-6 shadow-sm">
-                            <h2 className="text-lg font-bold text-[#3f2720]">
+                        <div className="rounded-2xl border border-border bg-surface p-6 shadow-sm">
+                            <h2 className="text-lg font-bold text-text">
                                 2. Print Specifications
                             </h2>
 
                             <div className="mt-5 grid grid-cols-1 gap-5 sm:grid-cols-2">
                                 {/* Color Mode */}
                                 <div>
-                                    <label className="block text-xs font-bold uppercase tracking-wider text-stone-600">
+                                    <label className="block text-xs font-bold uppercase tracking-wider text-muted-text">
                                         Color Mode
                                     </label>
                                     <div className="mt-2 grid grid-cols-2 gap-2">
                                         <button
                                             type="button"
                                             onClick={() => setColorMode('black-and-white')}
-                                            className={`rounded-xl border p-3 text-center text-xs font-bold transition ${colorMode === 'black-and-white'
-                                                ? 'border-[#7b1e1e] bg-[#7b1e1e] text-white shadow-sm'
-                                                : 'border-stone-200 bg-stone-50 text-stone-700 hover:bg-stone-100'
+                                            className={`rounded-xl border p-3 text-center text-xs font-bold transition cursor-pointer ${colorMode === 'black-and-white'
+                                                ? 'border-primary bg-primary text-white shadow-sm'
+                                                : 'border-border bg-surface-muted/40 text-text hover:bg-surface-hover'
                                                 }`}
                                         >
                                             Black &amp; White
@@ -419,9 +419,9 @@ function Xerox({ onBack, userRole = 'student' }) {
                                         <button
                                             type="button"
                                             onClick={() => setColorMode('color')}
-                                            className={`rounded-xl border p-3 text-center text-xs font-bold transition ${colorMode === 'color'
-                                                ? 'border-[#7b1e1e] bg-[#7b1e1e] text-white shadow-sm'
-                                                : 'border-stone-200 bg-stone-50 text-stone-700 hover:bg-stone-100'
+                                            className={`rounded-xl border p-3 text-center text-xs font-bold transition cursor-pointer ${colorMode === 'color'
+                                                ? 'border-primary bg-primary text-white shadow-sm'
+                                                : 'border-border bg-surface-muted/40 text-text hover:bg-surface-hover'
                                                 }`}
                                         >
                                             Color
@@ -434,16 +434,16 @@ function Xerox({ onBack, userRole = 'student' }) {
 
                                 {/* Print Sides */}
                                 <div>
-                                    <label className="block text-xs font-bold uppercase tracking-wider text-stone-600">
+                                    <label className="block text-xs font-bold uppercase tracking-wider text-muted-text">
                                         Print Sides
                                     </label>
                                     <div className="mt-2 grid grid-cols-2 gap-2">
                                         <button
                                             type="button"
                                             onClick={() => setPrintSides('single-sided')}
-                                            className={`rounded-xl border p-3 text-center text-xs font-bold transition ${printSides === 'single-sided'
-                                                ? 'border-[#7b1e1e] bg-[#7b1e1e] text-white shadow-sm'
-                                                : 'border-stone-200 bg-stone-50 text-stone-700 hover:bg-stone-100'
+                                            className={`rounded-xl border p-3 text-center text-xs font-bold transition cursor-pointer ${printSides === 'single-sided'
+                                                ? 'border-primary bg-primary text-white shadow-sm'
+                                                : 'border-border bg-surface-muted/40 text-text hover:bg-surface-hover'
                                                 }`}
                                         >
                                             Single-sided
@@ -454,9 +454,9 @@ function Xerox({ onBack, userRole = 'student' }) {
                                         <button
                                             type="button"
                                             onClick={() => setPrintSides('double-sided')}
-                                            className={`rounded-xl border p-3 text-center text-xs font-bold transition ${printSides === 'double-sided'
-                                                ? 'border-[#7b1e1e] bg-[#7b1e1e] text-white shadow-sm'
-                                                : 'border-stone-200 bg-stone-50 text-stone-700 hover:bg-stone-100'
+                                            className={`rounded-xl border p-3 text-center text-xs font-bold transition cursor-pointer ${printSides === 'double-sided'
+                                                ? 'border-primary bg-primary text-white shadow-sm'
+                                                : 'border-border bg-surface-muted/40 text-text hover:bg-surface-hover'
                                                 }`}
                                         >
                                             Double-sided
@@ -471,7 +471,7 @@ function Xerox({ onBack, userRole = 'student' }) {
                                 <div>
                                     <label
                                         htmlFor="number-of-copies"
-                                        className="block text-xs font-bold uppercase tracking-wider text-stone-600"
+                                        className="block text-xs font-bold uppercase tracking-wider text-muted-text"
                                     >
                                         Number of Copies (1–{rates.maximumCopies || 100})
                                     </label>
@@ -482,7 +482,7 @@ function Xerox({ onBack, userRole = 'student' }) {
                                         max={rates.maximumCopies || 100}
                                         value={numberOfCopies}
                                         onChange={(e) => setNumberOfCopies(Math.max(1, Number(e.target.value) || 1))}
-                                        className="mt-2 w-full rounded-xl border border-stone-200 bg-stone-50 px-4 py-2.5 text-sm font-semibold text-[#3f2720] focus:border-[#7b1e1e] focus:outline-none"
+                                        className="mt-2 w-full rounded-xl border border-border bg-surface px-4 py-2.5 text-sm font-semibold text-text focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none"
                                     />
                                 </div>
 
@@ -490,14 +490,14 @@ function Xerox({ onBack, userRole = 'student' }) {
                                 <div>
                                     <label
                                         htmlFor="paper-size-select"
-                                        className="block text-xs font-bold uppercase tracking-wider text-stone-600"
+                                        className="block text-xs font-bold uppercase tracking-wider text-muted-text"
                                     >
                                         Paper Size
                                     </label>
                                     <select
                                         id="paper-size-select"
                                         disabled
-                                        className="mt-2 w-full rounded-xl border border-stone-200 bg-stone-100 px-4 py-2.5 text-sm font-semibold text-stone-600 cursor-not-allowed"
+                                        className="mt-2 w-full rounded-xl border border-border bg-surface-muted px-4 py-2.5 text-sm font-semibold text-muted-text cursor-not-allowed"
                                     >
                                         <option value="A4">A4 Standard (Supported)</option>
                                     </select>
@@ -505,30 +505,30 @@ function Xerox({ onBack, userRole = 'student' }) {
                             </div>
 
                             {/* Print Range */}
-                            <div className="mt-5 border-t border-stone-100 pt-5">
-                                <label className="block text-xs font-bold uppercase tracking-wider text-stone-600">
+                            <div className="mt-5 border-t border-border pt-5">
+                                <label className="block text-xs font-bold uppercase tracking-wider text-muted-text">
                                     Page Selection Range
                                 </label>
                                 <div className="mt-2 flex gap-4">
-                                    <label className="flex items-center gap-2 text-sm font-medium text-stone-700 cursor-pointer">
+                                    <label className="flex items-center gap-2 text-sm font-medium text-text cursor-pointer">
                                         <input
                                             type="radio"
                                             name="printRange"
                                             value="full"
                                             checked={printRange === 'full'}
                                             onChange={() => setPrintRange('full')}
-                                            className="text-[#7b1e1e] focus:ring-[#7b1e1e]"
+                                            className="text-primary focus:ring-primary"
                                         />
                                         <span>Full Document</span>
                                     </label>
-                                    <label className="flex items-center gap-2 text-sm font-medium text-stone-700 cursor-pointer">
+                                    <label className="flex items-center gap-2 text-sm font-medium text-text cursor-pointer">
                                         <input
                                             type="radio"
                                             name="printRange"
                                             value="selected-pages"
                                             checked={printRange === 'selected-pages'}
                                             onChange={() => setPrintRange('selected-pages')}
-                                            className="text-[#7b1e1e] focus:ring-[#7b1e1e]"
+                                            className="text-primary focus:ring-primary"
                                         />
                                         <span>Selected Page Range</span>
                                     </label>
@@ -538,7 +538,7 @@ function Xerox({ onBack, userRole = 'student' }) {
                                     <div className="mt-3">
                                         <label
                                             htmlFor="estimated-pages-input"
-                                            className="block text-xs text-stone-500"
+                                            className="block text-xs text-muted-text"
                                         >
                                             Estimated total pages in document (for live price preview):
                                         </label>
@@ -548,7 +548,7 @@ function Xerox({ onBack, userRole = 'student' }) {
                                             min="1"
                                             value={estimatedPages}
                                             onChange={(e) => setEstimatedPages(Math.max(1, Number(e.target.value) || 1))}
-                                            className="mt-1 w-32 rounded-xl border border-stone-200 bg-stone-50 px-3 py-1.5 text-xs text-stone-800 focus:border-[#7b1e1e] focus:outline-none"
+                                            className="mt-1 w-32 rounded-xl border border-border bg-surface px-3 py-1.5 text-xs text-text focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none"
                                         />
                                     </div>
                                 ) : (
@@ -556,7 +556,7 @@ function Xerox({ onBack, userRole = 'student' }) {
                                         <div>
                                             <label
                                                 htmlFor="start-page-input"
-                                                className="block text-xs text-stone-500"
+                                                className="block text-xs text-muted-text"
                                             >
                                                 Start Page:
                                             </label>
@@ -566,13 +566,13 @@ function Xerox({ onBack, userRole = 'student' }) {
                                                 min="1"
                                                 value={startPage}
                                                 onChange={(e) => setStartPage(Math.max(1, Number(e.target.value) || 1))}
-                                                className="mt-1 w-28 rounded-xl border border-stone-200 bg-stone-50 px-3 py-1.5 text-xs text-stone-800 focus:border-[#7b1e1e] focus:outline-none"
+                                                className="mt-1 w-28 rounded-xl border border-border bg-surface px-3 py-1.5 text-xs text-text focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none"
                                             />
                                         </div>
                                         <div>
                                             <label
                                                 htmlFor="end-page-input"
-                                                className="block text-xs text-stone-500"
+                                                className="block text-xs text-muted-text"
                                             >
                                                 End Page:
                                             </label>
@@ -582,7 +582,7 @@ function Xerox({ onBack, userRole = 'student' }) {
                                                 min={startPage}
                                                 value={endPage}
                                                 onChange={(e) => setEndPage(Math.max(1, Number(e.target.value) || 1))}
-                                                className="mt-1 w-28 rounded-xl border border-stone-200 bg-stone-50 px-3 py-1.5 text-xs text-stone-800 focus:border-[#7b1e1e] focus:outline-none"
+                                                className="mt-1 w-28 rounded-xl border border-border bg-surface px-3 py-1.5 text-xs text-text focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none"
                                             />
                                         </div>
                                     </div>
@@ -590,19 +590,19 @@ function Xerox({ onBack, userRole = 'student' }) {
                             </div>
 
                             {/* Binding Options */}
-                            <div className="mt-5 border-t border-stone-100 pt-5">
+                            <div className="mt-5 border-t border-border pt-5">
                                 <label className="flex items-center gap-3 cursor-pointer">
                                     <input
                                         type="checkbox"
                                         checked={includeOHP}
                                         onChange={(e) => setIncludeOHP(e.target.checked)}
-                                        className="h-4 w-4 rounded border-stone-300 text-[#7b1e1e] focus:ring-[#7b1e1e]"
+                                        className="h-4 w-4 rounded border-border text-primary focus:ring-primary"
                                     />
                                     <div>
-                                        <p className="text-sm font-semibold text-[#3f2720]">
+                                        <p className="text-sm font-semibold text-text">
                                             Add OHP Transparent Cover / Binding
                                         </p>
-                                        <p className="text-xs text-stone-500">
+                                        <p className="text-xs text-muted-text">
                                             Includes 1 front &amp; 1 back protective transparent OHP sheet (+₹{2 * (rates.ohpSheetPrice || 5)} per copy).
                                         </p>
                                     </div>
@@ -610,30 +610,30 @@ function Xerox({ onBack, userRole = 'student' }) {
                             </div>
 
                             {/* Payment Method */}
-                            <div className="mt-5 border-t border-stone-100 pt-5">
-                                <label className="block text-xs font-bold uppercase tracking-wider text-stone-600">
+                            <div className="mt-5 border-t border-border pt-5">
+                                <label className="block text-xs font-bold uppercase tracking-wider text-muted-text">
                                     Payment Method
                                 </label>
                                 <div className="mt-2 flex gap-4">
-                                    <label className="flex items-center gap-2 text-sm font-medium text-stone-700 cursor-pointer">
+                                    <label className="flex items-center gap-2 text-sm font-medium text-text cursor-pointer">
                                         <input
                                             type="radio"
                                             name="paymentMethod"
                                             value="cash"
                                             checked={paymentMethod === 'cash'}
                                             onChange={() => setPaymentMethod('cash')}
-                                            className="text-[#7b1e1e] focus:ring-[#7b1e1e]"
+                                            className="text-primary focus:ring-primary"
                                         />
                                         <span>Cash on Pickup</span>
                                     </label>
-                                    <label className="flex items-center gap-2 text-sm font-medium text-stone-700 cursor-pointer">
+                                    <label className="flex items-center gap-2 text-sm font-medium text-text cursor-pointer">
                                         <input
                                             type="radio"
                                             name="paymentMethod"
                                             value="upi"
                                             checked={paymentMethod === 'upi'}
                                             onChange={() => setPaymentMethod('upi')}
-                                            className="text-[#7b1e1e] focus:ring-[#7b1e1e]"
+                                            className="text-primary focus:ring-primary"
                                         />
                                         <span>UPI</span>
                                     </label>
@@ -642,7 +642,7 @@ function Xerox({ onBack, userRole = 'student' }) {
                         </div>
 
                         {submitError && (
-                            <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-xs font-semibold text-red-700">
+                            <div className="rounded-xl border border-red-300 bg-red-50 dark:border-red-800 dark:bg-red-950/40 dark:text-red-300 p-4 text-xs font-semibold text-red-800">
                                 ⚠ {submitError}
                             </div>
                         )}
@@ -650,9 +650,9 @@ function Xerox({ onBack, userRole = 'student' }) {
                         <button
                             type="submit"
                             disabled={!isStudent || submitting || !file}
-                            className={`w-full rounded-2xl py-4 text-center font-bold text-white shadow-md transition ${!isStudent || submitting || !file
-                                ? 'bg-stone-300 cursor-not-allowed text-stone-500 shadow-none'
-                                : 'bg-[#7b1e1e] hover:bg-[#641818]'
+                            className={`w-full rounded-2xl py-4 text-center font-bold text-white shadow-md transition cursor-pointer ${!isStudent || submitting || !file
+                                ? 'bg-surface-muted text-muted-text cursor-not-allowed shadow-none'
+                                : 'bg-primary hover:bg-primary-hover'
                                 }`}
                         >
                             {submitting
@@ -663,42 +663,42 @@ function Xerox({ onBack, userRole = 'student' }) {
 
                     {/* Sidebar: Live Price Estimation & Order Summary */}
                     <div className="space-y-6">
-                        <div className="rounded-2xl border border-[#eadfd2] bg-white p-6 shadow-sm">
-                            <h3 className="text-base font-bold text-[#3f2720]">
+                        <div className="rounded-2xl border border-border bg-surface p-6 shadow-sm">
+                            <h3 className="text-base font-bold text-text">
                                 Price Estimation
                             </h3>
-                            <p className="text-xs text-stone-500 mt-0.5">
+                            <p className="text-xs text-muted-text mt-0.5">
                                 Real-time estimate based on backend pricing rules.
                             </p>
 
-                            <div className="mt-4 space-y-3 text-xs text-stone-600">
+                            <div className="mt-4 space-y-3 text-xs text-muted-text">
                                 <div className="flex justify-between">
                                     <span>Selected pages</span>
-                                    <span className="font-semibold text-stone-900">{priceBreakdown.pages}</span>
+                                    <span className="font-semibold text-text">{priceBreakdown.pages}</span>
                                 </div>
                                 <div className="flex justify-between">
                                     <span>Physical sheets per copy</span>
-                                    <span className="font-semibold text-stone-900">{priceBreakdown.unitsPerCopy}</span>
+                                    <span className="font-semibold text-text">{priceBreakdown.unitsPerCopy}</span>
                                 </div>
                                 <div className="flex justify-between">
                                     <span>Rate per {printSides === 'single-sided' ? 'page' : 'sheet'}</span>
-                                    <span className="font-semibold text-stone-900">₹{priceBreakdown.rate}</span>
+                                    <span className="font-semibold text-text">₹{priceBreakdown.rate}</span>
                                 </div>
                                 <div className="flex justify-between">
                                     <span>Number of copies</span>
-                                    <span className="font-semibold text-stone-900">{priceBreakdown.copies}</span>
+                                    <span className="font-semibold text-text">{priceBreakdown.copies}</span>
                                 </div>
-                                <div className="flex justify-between border-t border-stone-100 pt-2">
+                                <div className="flex justify-between border-t border-border pt-2">
                                     <span>Base Printing Cost</span>
-                                    <span className="font-semibold text-stone-900">₹{priceBreakdown.printingCost}</span>
+                                    <span className="font-semibold text-text">₹{priceBreakdown.printingCost}</span>
                                 </div>
                                 {includeOHP && (
-                                    <div className="flex justify-between text-indigo-700">
+                                    <div className="flex justify-between text-accent font-medium">
                                         <span>OHP Binding (2 sheets × ₹5 × {priceBreakdown.copies})</span>
-                                        <span className="font-semibold">+₹{priceBreakdown.ohpCost}</span>
+                                        <span className="font-semibold text-text">+₹{priceBreakdown.ohpCost}</span>
                                     </div>
                                 )}
-                                <div className="flex justify-between border-t border-stone-200 pt-3 text-sm font-bold text-[#7b1e1e]">
+                                <div className="flex justify-between border-t border-border pt-3 text-sm font-bold text-primary">
                                     <span>Total Estimated Price</span>
                                     <span>₹{priceBreakdown.total}</span>
                                 </div>
@@ -706,15 +706,15 @@ function Xerox({ onBack, userRole = 'student' }) {
                         </div>
 
                         {/* Order History / Status Card */}
-                        <div className="rounded-2xl border border-[#eadfd2] bg-white p-6 shadow-sm">
+                        <div className="rounded-2xl border border-border bg-surface p-6 shadow-sm">
                             <div className="flex items-center justify-between">
-                                <h3 className="text-base font-bold text-[#3f2720]">
+                                <h3 className="text-base font-bold text-text">
                                     My Xerox Requests
                                 </h3>
                                 <button
                                     type="button"
                                     onClick={handleManualRefresh}
-                                    className="text-xs text-[#7b1e1e] hover:underline"
+                                    className="text-xs text-primary hover:underline cursor-pointer"
                                     disabled={loadingRequests}
                                 >
                                     {loadingRequests ? 'Refreshing...' : 'Refresh'}
@@ -722,37 +722,37 @@ function Xerox({ onBack, userRole = 'student' }) {
                             </div>
 
                             {requestsError && (
-                                <p className="mt-2 text-xs text-red-600">{requestsError}</p>
+                                <p className="mt-2 text-xs text-danger">{requestsError}</p>
                             )}
 
                             <div className="mt-4 space-y-3">
                                 {myRequests.length === 0 ? (
-                                    <p className="text-xs text-stone-500">
+                                    <p className="text-xs text-muted-text">
                                         No recent Xerox requests found.
                                     </p>
                                 ) : (
                                     myRequests.slice(0, 5).map((req) => (
                                         <div
                                             key={req._id}
-                                            className="rounded-xl border border-stone-100 bg-stone-50/60 p-3 text-xs"
+                                            className="rounded-xl border border-border bg-surface-muted/30 p-3 text-xs"
                                         >
                                             <div className="flex items-center justify-between">
-                                                <span className="font-bold text-[#3f2720]">
+                                                <span className="font-bold text-text">
                                                     ID: {req._id.slice(-6).toUpperCase()}
                                                 </span>
                                                 <span
-                                                    className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase ${STATUS_BADGES[req.status] || 'bg-stone-100 text-stone-700'
+                                                    className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase ${STATUS_BADGES[req.status] || 'bg-surface-muted text-muted-text border-border'
                                                         }`}
                                                 >
                                                     {req.status}
                                                 </span>
                                             </div>
-                                            <p className="mt-1 text-stone-500">
+                                            <p className="mt-1 text-muted-text">
                                                 {req.numberOfCopies} copy · {req.colorMode === 'color' ? 'Color' : 'B&W'} · {req.printSides}
                                             </p>
-                                            <div className="mt-1 flex items-center justify-between text-stone-700">
+                                            <div className="mt-1 flex items-center justify-between text-text">
                                                 <span>₹{req.estimatedPrice} ({req.paymentMethod})</span>
-                                                <span className="text-[10px] text-stone-400">
+                                                <span className="text-[10px] text-muted-text">
                                                     {new Date(req.createdAt).toLocaleDateString()}
                                                 </span>
                                             </div>
