@@ -161,6 +161,30 @@ function ShopkeeperDashboard({ onLogout }) {
         }
     }
 
+    const handleUpdatePayment = async (orderId, action) => {
+        let reason = ''
+        if (action === 'reject') {
+            reason = window.prompt('Please enter rejection reason (e.g., Invalid screenshot or UTR mismatch):')
+            if (reason === null) return
+            if (!reason.trim()) reason = 'Invalid payment proof'
+        }
+
+        setActionError('')
+        setActionMessage('')
+
+        try {
+            const result = await apiRequest(`/api/orders/${orderId}/payment`, {
+                method: 'PATCH',
+                body: JSON.stringify({ action, reason }),
+            })
+            setActionMessage(result.message || `Payment ${action === 'confirm' ? 'confirmed' : 'rejected'}.`)
+            const refreshed = await fetchShopkeeperData()
+            setOrders(refreshed.orders)
+        } catch (err) {
+            setActionError(err.message || 'Failed to update payment status.')
+        }
+    }
+
     const orderCounts = useMemo(() => {
         const counts = {
             placed: 0,
@@ -500,7 +524,7 @@ function ShopkeeperDashboard({ onLogout }) {
                                                 Payment Method
                                             </p>
                                             <p className="mt-1 font-semibold capitalize text-gray-800">
-                                                {order.paymentMethod === 'razorpay' ? 'Razorpay' : 'Pay at Counter'}
+                                                {order.paymentMethod === 'upi' ? 'UPI' : order.paymentMethod === 'razorpay' ? 'Razorpay' : 'Pay at Counter'}
                                             </p>
                                         </div>
 
@@ -512,10 +536,14 @@ function ShopkeeperDashboard({ onLogout }) {
                                                 className={`mt-1 inline-block rounded-md px-2 py-0.5 text-xs font-bold uppercase ${
                                                     order.paymentStatus === 'paid'
                                                         ? 'bg-emerald-100 text-emerald-800'
+                                                        : order.paymentStatus === 'rejected'
+                                                        ? 'bg-rose-100 text-rose-800'
                                                         : 'bg-amber-100 text-amber-800'
                                                 }`}
                                             >
-                                                {order.paymentStatus || 'pending'}
+                                                {order.paymentStatus === 'pending_verification'
+                                                    ? 'Pending Verification'
+                                                    : order.paymentStatus || 'unpaid'}
                                             </span>
                                         </div>
 
@@ -528,6 +556,49 @@ function ShopkeeperDashboard({ onLogout }) {
                                             </p>
                                         </div>
                                     </div>
+
+                                    {order.paymentMethod === 'upi' && (
+                                        <div className="mb-4 rounded-xl border border-[#eadfd2] bg-[#fbf7f2] p-4 text-xs">
+                                            <div className="flex flex-wrap items-center justify-between gap-2">
+                                                <div>
+                                                    <span className="font-bold text-[#8b5e3c]">UPI UTR:</span>{' '}
+                                                    <span className="font-mono font-semibold">{order.paymentUtr || 'Not provided'}</span>
+                                                    {order.paymentRejectReason && (
+                                                        <p className="mt-1 font-medium text-red-600">Rejection Reason: {order.paymentRejectReason}</p>
+                                                    )}
+                                                </div>
+                                                {order.paymentProof && (
+                                                    <a
+                                                        href={order.paymentProof}
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        className="font-semibold text-[#7b1e1e] hover:underline"
+                                                    >
+                                                        View Payment Screenshot ↗
+                                                    </a>
+                                                )}
+                                            </div>
+
+                                            {order.paymentStatus === 'pending_verification' && (
+                                                <div className="mt-3 flex gap-2">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => handleUpdatePayment(order._id, 'confirm')}
+                                                        className="rounded-lg bg-emerald-700 px-3 py-1.5 font-bold text-white hover:bg-emerald-800 text-xs"
+                                                    >
+                                                        Confirm Payment
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => handleUpdatePayment(order._id, 'reject')}
+                                                        className="rounded-lg bg-rose-700 px-3 py-1.5 font-bold text-white hover:bg-rose-800 text-xs"
+                                                    >
+                                                        Reject Payment
+                                                    </button>
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
 
                                     {/* Ordered Items Breakdown */}
                                     <div className="rounded-xl bg-[#f7f0e6]/70 p-4">

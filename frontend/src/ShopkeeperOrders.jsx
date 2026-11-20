@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import {
   getIncomingOrders,
   updateFoodOrderStatus,
+  updateOrderPayment,
 } from './api/shopkeeperOrderApi';
 
 function ShopkeeperOrders() {
@@ -42,6 +43,29 @@ function ShopkeeperOrders() {
     } catch (err) {
       setError(
         err.response?.data?.message || 'Unable to update order status.'
+      );
+    }
+  };
+
+  const changePayment = async (orderId, action) => {
+    let reason = '';
+    if (action === 'reject') {
+      reason = window.prompt('Please enter rejection reason:');
+      if (reason === null) return;
+      if (!reason.trim()) reason = 'Invalid payment proof';
+    }
+
+    try {
+      setError('');
+      setMessage('');
+
+      await updateOrderPayment(orderId, action, reason);
+
+      setMessage(`Payment ${action === 'confirm' ? 'confirmed' : 'rejected'} successfully.`);
+      await loadOrders();
+    } catch (err) {
+      setError(
+        err.response?.data?.message || 'Unable to update payment status.'
       );
     }
   };
@@ -114,6 +138,57 @@ function ShopkeeperOrders() {
                 <p>
                   <strong>Status:</strong> {order.status}
                 </p>
+
+                <p>
+                  <strong>Payment Method:</strong>{' '}
+                  <span className="capitalize">{order.paymentMethod === 'upi' ? 'UPI' : order.paymentMethod === 'razorpay' ? 'Razorpay' : 'Pay at Counter'}</span>
+                </p>
+
+                <p>
+                  <strong>Payment Status:</strong>{' '}
+                  <span className="font-semibold uppercase text-xs">
+                    {order.paymentStatus === 'pending_verification' ? 'Pending Verification' : order.paymentStatus || 'Unpaid'}
+                  </span>
+                </p>
+
+                {order.paymentMethod === 'upi' && (
+                  <div className="my-2 rounded border border-gray-200 bg-gray-50 p-2 text-xs">
+                    <p><strong>UTR:</strong> {order.paymentUtr || 'Not provided'}</p>
+                    {order.paymentRejectReason && (
+                      <p className="text-red-600"><strong>Reason:</strong> {order.paymentRejectReason}</p>
+                    )}
+                    {order.paymentProof && (
+                      <p className="mt-1">
+                        <a
+                          href={order.paymentProof}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-[#7b1e1e] underline font-semibold"
+                        >
+                          View Payment Proof Screenshot
+                        </a>
+                      </p>
+                    )}
+                    {order.paymentStatus === 'pending_verification' && (
+                      <div className="mt-2 flex gap-2">
+                        <button
+                          type="button"
+                          onClick={() => changePayment(order._id, 'confirm')}
+                          className="rounded bg-emerald-700 px-3 py-1 font-bold text-white text-xs"
+                        >
+                          Confirm Payment
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => changePayment(order._id, 'reject')}
+                          className="rounded bg-rose-700 px-3 py-1 font-bold text-white text-xs"
+                        >
+                          Reject Payment
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 <p>
                   <strong>Total:</strong> ₹

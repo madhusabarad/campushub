@@ -18,3 +18,7 @@ Thumbs.db
 
 # Private uploaded documents
 private_uploads/
+
+# Uploaded files
+/uploads
+

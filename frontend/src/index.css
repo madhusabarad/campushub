@@ -1,1 +1,140 @@
 @import "tailwindcss";
+
+@theme {
+  --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-accent: var(--accent);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-danger: var(--danger);
+  --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-text: var(--text);
+  --color-muted-text: var(--muted-text);
+  --color-border: var(--border);
+
+  --font-sans: var(--font-sans);
+  --font-serif: var(--font-serif);
+  --font-mono: var(--font-mono);
+
+  --radius-xs: var(--radius-xs);
+  --radius-sm: var(--radius-sm);
+  --radius-md: var(--radius-md);
+  --radius-lg: var(--radius-lg);
+  --radius-xl: var(--radius-xl);
+  --radius-2xl: var(--radius-2xl);
+
+  --shadow-sm: var(--shadow-sm);
+  --shadow-md: var(--shadow-md);
+  --shadow-lg: var(--shadow-lg);
+  --shadow-xl: var(--shadow-xl);
+  --shadow-2xl: var(--shadow-2xl);
+}
+
+:root {
+  /* CampusHub Brand Colors */
+  --primary: #7b1e1e;
+  --primary-hover: #641818;
+  --accent: #8b5e3c;
+  --success: #15803d;
+  --warning: #b45309;
+  --danger: #b91c1c;
+
+  /* Surfaces & Backgrounds */
+  --background: #f7f0e6;
+  --surface: #ffffff;
+
+  /* Typography Colors */
+  --text: #3f2720;
+  --muted-text: #766d63;
+
+  /* Borders */
+  --border: #eadfd2;
+
+  /* Radius Tokens */
+  --radius-xs: 0.25rem;
+  --radius-sm: 0.375rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
+  --radius-xl: 1rem;
+  --radius-2xl: 1.5rem;
+  --radius-full: 9999px;
+  --radius: var(--radius-lg);
+
+  /* Shadow Tokens */
+  --shadow-sm: 0 1px 2px 0 rgba(63, 39, 32, 0.05);
+  --shadow-md: 0 4px 6px -1px rgba(63, 39, 32, 0.08), 0 2px 4px -2px rgba(63, 39, 32, 0.04);
+  --shadow-lg: 0 10px 15px -3px rgba(63, 39, 32, 0.08), 0 4px 6px -4px rgba(63, 39, 32, 0.04);
+  --shadow-xl: 0 20px 25px -5px rgba(63, 39, 32, 0.1), 0 8px 10px -6px rgba(63, 39, 32, 0.05);
+  --shadow-2xl: 0 25px 50px -12px rgba(63, 39, 32, 0.2);
+  --shadow: var(--shadow-md);
+
+  /* Typography Foundation */
+  --font-sans: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+  --font-serif: 'Newsreader', Georgia, Cambria, 'Times New Roman', serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+
+  --font-size-xs: 0.75rem;
+  --font-size-sm: 0.875rem;
+  --font-size-base: 1rem;
+  --font-size-lg: 1.125rem;
+  --font-size-xl: 1.25rem;
+  --font-size-2xl: 1.5rem;
+  --font-size-3xl: 1.875rem;
+  --font-size-4xl: 2.25rem;
+  --font-size-5xl: 3rem;
+
+  --line-height-tight: 1.25;
+  --line-height-normal: 1.5;
+  --line-height-relaxed: 1.625;
+
+  --font-weight-normal: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+
+  /* Spacing Scale Foundation */
+  --spacing-1: 0.25rem;
+  --spacing-2: 0.5rem;
+  --spacing-3: 0.75rem;
+  --spacing-4: 1rem;
+  --spacing-5: 1.25rem;
+  --spacing-6: 1.5rem;
+  --spacing-8: 2rem;
+  --spacing-10: 2.5rem;
+  --spacing-12: 3rem;
+  --spacing-16: 4rem;
+}
+
+[data-theme="dark"] {
+  --primary: #d9534f;
+  --primary-hover: #e57373;
+  --accent: #e0a96d;
+  --success: #4ade80;
+  --warning: #f59e0b;
+  --danger: #f87171;
+
+  --background: #191412;
+  --surface: #241e1b;
+
+  --text: #f5efe7;
+  --muted-text: #a89f91;
+
+  --border: #3a312c;
+
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.5), 0 2px 4px -2px rgba(0, 0, 0, 0.3);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.55), 0 4px 6px -4px rgba(0, 0, 0, 0.35);
+  --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.65), 0 8px 10px -6px rgba(0, 0, 0, 0.45);
+  --shadow-2xl: 0 25px 50px -12px rgba(0, 0, 0, 0.8);
+  --shadow: var(--shadow-md);
+}
+
+body {
+  background-color: var(--background);
+  color: var(--text);
+  font-family: var(--font-sans);
+  line-height: var(--line-height-normal);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}

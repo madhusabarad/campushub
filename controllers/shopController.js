@@ -74,13 +74,13 @@ exports.getShops = async (req, res) => {
     }
 
     if (req.query.category !== undefined) {
-      const validCategories = ['canteen', 'foodcourt', 'bakery'];
+      const validCategories = ['canteen', 'foodcourt', 'bakery', 'xerox'];
       const category = String(req.query.category).toLowerCase();
 
       if (!validCategories.includes(category)) {
         return res.status(400).json({
           success: false,
-          message: 'Invalid category. Use canteen, foodcourt, or bakery.',
+          message: 'Invalid category. Use canteen, foodcourt, bakery, or xerox.',
         });
       }
 
@@ -298,3 +298,62 @@ exports.updateShopStatus = async (req, res) => {
     });
   }
 };
+
+// @desc Set UPI ID for a shop
+// @route PATCH /api/shops/:id/upi
+// @access Shopkeeper
+exports.updateShopUpi = async (req, res) => {
+  try {
+    if (!mongoose.isValidObjectId(req.params.id)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid shop ID.',
+      });
+    }
+
+    const { upiId } = req.body;
+
+    if (typeof upiId !== 'string' || !upiId.trim()) {
+      return res.status(400).json({
+        success: false,
+        message: 'A valid UPI ID is required.',
+      });
+    }
+
+    const shop = await Shop.findById(req.params.id);
+
+    if (!shop) {
+      return res.status(404).json({
+        success: false,
+        message: 'Shop not found.',
+      });
+    }
+
+    if (
+      !shop.shopkeeperId ||
+      shop.shopkeeperId.toString() !== req.user.id
+    ) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied. You do not own this shop.',
+      });
+    }
+
+    shop.upiId = upiId.trim();
+    await shop.save();
+
+    return res.status(200).json({
+      success: true,
+      message: 'Shop UPI ID updated successfully.',
+      data: shop,
+    });
+  } catch (err) {
+    console.error('updateShopUpi error:', err);
+
+    return res.status(500).json({
+      success: false,
+      message: 'Server error.',
+    });
+  }
+};
+

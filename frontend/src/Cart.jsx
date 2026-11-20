@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import UPIPaymentForm from './components/UPIPaymentForm'
 
 const getHeaders = () => {
     const token = localStorage.getItem('campushub_token')
@@ -40,6 +41,7 @@ function Cart({ onBack }) {
     const [clearing, setClearing] = useState(false)
     const [placingOrder, setPlacingOrder] = useState(false)
     const [placedOrder, setPlacedOrder] = useState(null)
+    const [checkoutStage, setCheckoutStage] = useState('cart')
 
     const loadCart = useCallback(async () => {
         const result = await apiRequest('/api/cart')
@@ -170,6 +172,7 @@ function Cart({ onBack }) {
 
             setCartItems([])
             setPlacedOrder(result.data || null)
+            setCheckoutStage('payment')
         } catch (err) {
             setActionError(err.message || 'Unable to place your order. Please try again.')
         } finally {
@@ -242,7 +245,23 @@ function Cart({ onBack }) {
                     </div>
                 )}
 
-                {!loading && !error && placedOrder && (
+                {!loading && !error && checkoutStage === 'payment' && placedOrder && (
+                    <div className="mx-auto max-w-2xl py-4">
+                        <UPIPaymentForm
+                            order={placedOrder}
+                            showCounterOption={true}
+                            onSuccess={(finalOrder) => {
+                                setPlacedOrder(finalOrder || placedOrder)
+                                setCheckoutStage('success')
+                            }}
+                            onCancel={() => {
+                                setCheckoutStage('success')
+                            }}
+                        />
+                    </div>
+                )}
+
+                {!loading && !error && checkoutStage === 'success' && placedOrder && (
                     <div className="rounded-2xl border border-[#eadfd2] bg-white p-8 text-center shadow-sm">
                         <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-[#f1e3d5] text-3xl">
                             🎉
@@ -261,6 +280,17 @@ function Cart({ onBack }) {
                             </p>
                         </div>
 
+                        {placedOrder.pickupToken && (
+                            <div className="mx-auto mb-6 max-w-sm rounded-xl border border-[#eadfd2] bg-[#fbf7f2] p-4 text-center">
+                                <p className="text-xs font-semibold uppercase tracking-widest text-[#8b5e3c]">
+                                    Pickup Token
+                                </p>
+                                <p className="mt-1 font-mono text-sm font-bold text-[#7b1e1e] break-all">
+                                    {placedOrder.pickupToken}
+                                </p>
+                            </div>
+                        )}
+
                         <div className="mx-auto max-w-sm rounded-xl bg-[#f7f0e6] p-4 text-left text-sm text-gray-700">
                             <div className="flex justify-between py-1">
                                 <span className="text-gray-500">Status</span>
@@ -276,14 +306,22 @@ function Cart({ onBack }) {
                             </div>
                             <div className="flex justify-between py-1">
                                 <span className="text-gray-500">Payment</span>
-                                <span className="capitalize">{placedOrder.paymentStatus || 'pending'}</span>
+                                <span className="font-semibold text-emerald-800">
+                                    {placedOrder.paymentMethod === 'upi'
+                                        ? `UPI (${placedOrder.paymentStatus === 'paid' ? 'Paid' : placedOrder.paymentStatus === 'rejected' ? 'Rejected' : 'Pending Verification'}${placedOrder.paymentUtr ? ` - UTR: ${placedOrder.paymentUtr}` : ''})`
+                                        : 'Pay at Counter'}
+                                </span>
                             </div>
                         </div>
 
                         <div className="mt-6 flex justify-center gap-4">
                             <button
                                 type="button"
-                                onClick={() => setPlacedOrder(null)}
+                                onClick={() => {
+                                    setPlacedOrder(null)
+                                    setCheckoutStage('cart')
+                                    loadCart()
+                                }}
                                 className="rounded-xl border border-[#7b1e1e] px-6 py-3 font-semibold text-[#7b1e1e] transition hover:bg-[#7b1e1e] hover:text-white"
                             >
                                 Order More
@@ -299,7 +337,7 @@ function Cart({ onBack }) {
                     </div>
                 )}
 
-                {!loading && !error && !placedOrder && cartItems.length === 0 && (
+                {!loading && !error && checkoutStage === 'cart' && cartItems.length === 0 && (
                     <div className="rounded-2xl border border-dashed border-[#d9cabb] bg-[#fffaf4] p-12 text-center">
                         <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-[#f1e3d5] text-2xl">
                             🛒
@@ -318,7 +356,7 @@ function Cart({ onBack }) {
                     </div>
                 )}
 
-                {!loading && !error && !placedOrder && cartItems.length > 0 && (
+                {!loading && !error && checkoutStage === 'cart' && cartItems.length > 0 && (
                     <div className="grid gap-8 lg:grid-cols-3">
                         <section className="lg:col-span-2">
                             <div className="flex items-center justify-between border-b border-[#eadfd2] pb-4">

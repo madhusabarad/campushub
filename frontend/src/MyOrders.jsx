@@ -217,6 +217,23 @@ function MyOrders({ onBack }) {
                                         </span>
                                     </div>
 
+                                    <div className="flex justify-between gap-4 mt-2">
+                                        <span className="text-gray-500">
+                                            Payment
+                                        </span>
+                                        <span className={`text-xs font-semibold px-2 py-0.5 rounded ${
+                                            order.paymentStatus === 'paid'
+                                                ? 'bg-emerald-100 text-emerald-800'
+                                                : order.paymentStatus === 'rejected'
+                                                ? 'bg-rose-100 text-rose-800'
+                                                : 'bg-amber-100 text-amber-800'
+                                        }`}>
+                                            {order.paymentMethod === 'upi'
+                                                ? (order.paymentStatus === 'paid' ? 'Paid ✓' : order.paymentStatus === 'rejected' ? `Rejected: ${order.paymentRejectReason || ''}` : 'UPI Pending Verification')
+                                                : 'Pay at Counter'}
+                                        </span>
+                                    </div>
+
                                     {Array.isArray(order.items) && (
                                         <div className="mt-4">
                                             <p className="mb-2 text-sm font-semibold">

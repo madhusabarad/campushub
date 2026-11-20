@@ -94,13 +94,41 @@ const orderSchema = new mongoose.Schema(
     // Payment details
     paymentMethod: {
       type: String,
-      enum: ['razorpay', 'pay_at_counter'],
-      default: 'pay_at_counter',
+      enum: {
+        values: ['upi', 'counter', 'pay_at_counter', 'razorpay'],
+        message: '{VALUE} is not a valid payment method',
+      },
+      default: 'counter',
     },
     paymentStatus: {
       type: String,
-      enum: ['pending', 'paid', 'failed', 'refunded'],
-      default: 'pending',
+      enum: {
+        values: [
+          'unpaid',
+          'pending_verification',
+          'paid',
+          'rejected',
+          'pending',
+          'failed',
+          'refunded',
+        ],
+        message: '{VALUE} is not a valid payment status',
+      },
+      default: 'unpaid',
+    },
+    paymentUtr: {
+      type: String,
+      unique: true,
+      sparse: true,
+      trim: true,
+    },
+    paymentProof: {
+      type: String,
+      trim: true,
+    },
+    paymentRejectReason: {
+      type: String,
+      trim: true,
     },
     razorpayOrderId: {
       type: String,

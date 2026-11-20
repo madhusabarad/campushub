@@ -21,3 +21,13 @@ export const updateFoodOrderStatus = async (orderId, status) => {
 
   return response.data;
 };
+
+// Update order payment status (confirm/reject)
+export const updateOrderPayment = async (orderId, action, reason) => {
+  const response = await api.patch(
+    `/orders/${orderId}/payment`,
+    { action, reason }
+  );
+
+  return response.data;
+};

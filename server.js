@@ -1,4 +1,5 @@
 require('dotenv').config();
+const path = require('path');
 
 const jwt = require('jsonwebtoken');
 const Shop = require('./models/Shop');
@@ -44,6 +45,9 @@ app.set('io', io);
 // Body parsers
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// Serve static uploads
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Routes
 app.use('/api', healthRoutes);
