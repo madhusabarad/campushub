@@ -95,14 +95,14 @@ function MyOrders({ onBack }) {
     }
 
     return (
-        <main className="min-h-screen bg-[#f7f0e6] text-[#3f2720]">
-            <header className="border-b border-[#eadfd2] bg-[#fffaf4]">
+        <main className="min-h-screen bg-background text-text">
+            <header className="border-b border-border bg-surface">
                 <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-5">
                     <div>
-                        <h1 className="text-2xl font-bold text-[#7b1e1e]">
+                        <h1 className="text-2xl font-bold text-primary">
                             CampusHub
                         </h1>
-                        <p className="text-sm text-gray-500">
+                        <p className="text-sm text-muted-text">
                             Your campus, connected
                         </p>
                     </div>
@@ -110,7 +110,7 @@ function MyOrders({ onBack }) {
                     <button
                         type="button"
                         onClick={onBack}
-                        className="rounded-xl border border-[#7b1e1e] px-5 py-2.5 text-sm font-semibold text-[#7b1e1e] hover:bg-[#7b1e1e] hover:text-white"
+                        className="rounded-xl border border-primary px-5 py-2.5 text-sm font-semibold text-primary hover:bg-primary hover:text-white transition cursor-pointer"
                     >
                         ← Dashboard
                     </button>
@@ -119,23 +119,23 @@ function MyOrders({ onBack }) {
 
             <div className="mx-auto max-w-7xl px-6 py-10">
                 <section className="mb-8">
-                    <p className="mb-2 text-sm font-semibold uppercase tracking-[0.2em] text-[#8b5e3c]">
+                    <p className="mb-2 text-sm font-semibold uppercase tracking-[0.2em] text-accent">
                         Your Activity
                     </p>
-                    <h2 className="text-4xl font-bold">My Orders</h2>
-                    <p className="mt-3 text-gray-600">
+                    <h2 className="text-4xl font-bold text-text">My Orders</h2>
+                    <p className="mt-3 text-muted-text">
                         View your previous orders and check their status.
                     </p>
                 </section>
 
                 {message && (
-                    <div className="mb-5 rounded-xl border border-green-200 bg-green-50 px-5 py-3 text-sm text-green-700">
+                    <div className="mb-5 rounded-xl border border-green-300 bg-green-50 px-5 py-3 text-sm text-green-800 dark:border-green-800 dark:bg-green-950/40 dark:text-green-300">
                         {message}
                     </div>
                 )}
 
                 {error && (
-                    <div className="mb-5 rounded-xl border border-red-200 bg-red-50 px-5 py-3 text-sm text-red-700">
+                    <div className="mb-5 rounded-xl border border-red-300 bg-red-50 px-5 py-3 text-sm text-red-800 dark:border-red-800 dark:bg-red-950/40 dark:text-red-300">
                         {error}
                         <button
                             type="button"
@@ -150,7 +150,7 @@ function MyOrders({ onBack }) {
                                     setLoading(false)
                                 }
                             }}
-                            className="ml-2 font-semibold underline"
+                            className="ml-2 font-semibold underline cursor-pointer"
                         >
                             Try again
                         </button>
@@ -158,24 +158,24 @@ function MyOrders({ onBack }) {
                 )}
 
                 {loading && (
-                    <div className="rounded-2xl bg-white p-8 text-center shadow-sm">
+                    <div className="rounded-2xl border border-border bg-surface p-8 text-center shadow-sm text-muted-text">
                         Loading your orders...
                     </div>
                 )}
 
                 {!loading && !error && orders.length === 0 && (
-                    <div className="rounded-2xl border border-[#eadfd2] bg-white px-6 py-16 text-center shadow-sm">
+                    <div className="rounded-2xl border border-border bg-surface px-6 py-16 text-center shadow-sm">
                         <div className="mb-4 text-5xl">📦</div>
-                      <h3 className="mt-1 font-bold">
-                          Order #{index + 1}
-                     </h3>
-                        <p className="mt-2 text-gray-500">
+                        <h3 className="mt-1 font-bold text-text text-xl">
+                            No orders placed yet
+                        </h3>
+                        <p className="mt-2 text-muted-text">
                             Your placed orders will appear here.
                         </p>
                         <button
                             type="button"
                             onClick={onBack}
-                            className="mt-6 rounded-xl bg-[#7b1e1e] px-6 py-3 font-semibold text-white hover:bg-[#641818]"
+                            className="mt-6 rounded-xl bg-primary px-6 py-3 font-semibold text-white hover:bg-primary-hover transition cursor-pointer"
                         >
                             Explore CampusHub
                         </button>
@@ -187,46 +187,46 @@ function MyOrders({ onBack }) {
                         {orders.map((order, index) => (
                             <article
                                 key={order._id}
-                                className="rounded-2xl border border-[#eadfd2] bg-white p-6 shadow-sm"
+                                className="rounded-2xl border border-border bg-surface p-6 shadow-sm"
                             >
                                 <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
                                     <div>
-                                        <p className="text-xs font-semibold uppercase tracking-wider text-[#8b5e3c]">
+                                        <p className="text-xs font-semibold uppercase tracking-wider text-accent">
                                             Order ID
                                         </p>
-                                        <h3 className="mt-1 font-bold">
+                                        <h3 className="mt-1 font-bold text-text text-lg">
                                             Order #{index + 1}
                                         </h3>
-                                        <p className="mt-2 text-sm text-gray-500">
+                                        <p className="mt-2 text-sm text-muted-text">
                                             {formatDate(order.createdAt)}
                                         </p>
                                     </div>
 
-                                    <span className="w-fit rounded-full bg-[#f1e3d5] px-4 py-2 text-sm font-semibold text-[#7b1e1e]">
+                                    <span className="w-fit rounded-full bg-primary/10 border border-primary/20 px-4 py-2 text-sm font-semibold text-primary">
                                         {formatStatus(order.status)}
                                     </span>
                                 </div>
 
-                                <div className="mt-5 border-t border-[#eadfd2] pt-5">
+                                <div className="mt-5 border-t border-border pt-5">
                                     <div className="flex justify-between gap-4">
-                                        <span className="text-gray-500">
+                                        <span className="text-muted-text">
                                             Total Amount
                                         </span>
-                                        <span className="font-bold text-[#7b1e1e]">
+                                        <span className="font-bold text-primary text-lg">
                                             ₹{getTotal(order)}
                                         </span>
                                     </div>
 
                                     <div className="flex justify-between gap-4 mt-2">
-                                        <span className="text-gray-500">
+                                        <span className="text-muted-text">
                                             Payment
                                         </span>
                                         <span className={`text-xs font-semibold px-2 py-0.5 rounded ${
                                             order.paymentStatus === 'paid'
-                                                ? 'bg-emerald-100 text-emerald-800'
+                                                ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-300 dark:border dark:border-emerald-800'
                                                 : order.paymentStatus === 'rejected'
-                                                ? 'bg-rose-100 text-rose-800'
-                                                : 'bg-amber-100 text-amber-800'
+                                                ? 'bg-rose-100 text-rose-800 dark:bg-rose-950/50 dark:text-rose-300 dark:border dark:border-rose-800'
+                                                : 'bg-amber-100 text-amber-800 dark:bg-amber-950/50 dark:text-amber-300 dark:border dark:border-amber-800'
                                         }`}>
                                             {order.paymentMethod === 'upi'
                                                 ? (order.paymentStatus === 'paid' ? 'Paid ✓' : order.paymentStatus === 'rejected' ? `Rejected: ${order.paymentRejectReason || ''}` : 'UPI Pending Verification')
@@ -236,13 +236,13 @@ function MyOrders({ onBack }) {
 
                                     {Array.isArray(order.items) && (
                                         <div className="mt-4">
-                                            <p className="mb-2 text-sm font-semibold">
+                                            <p className="mb-2 text-sm font-semibold text-text">
                                                 Items
                                             </p>
-                                            {order.items.map((item, index) => (
+                                            {order.items.map((item, itemIdx) => (
                                                 <div
-                                                    key={item._id || index}
-                                                    className="flex justify-between gap-3 py-1 text-sm text-gray-600"
+                                                    key={item._id || itemIdx}
+                                                    className="flex justify-between gap-3 py-1 text-sm text-muted-text"
                                                 >
                                                     <span>
                                                         {item.name ||
@@ -252,7 +252,7 @@ function MyOrders({ onBack }) {
                                                         {' × '}
                                                         {item.quantity || 1}
                                                     </span>
-                                                    <span>
+                                                    <span className="font-medium text-text">
                                                         ₹{item.price ?? item.subtotal ?? 0}
                                                     </span>
                                                 </div>
@@ -265,7 +265,7 @@ function MyOrders({ onBack }) {
                                             type="button"
                                             disabled={cancellingId === order._id}
                                             onClick={() => handleCancel(order._id)}
-                                            className="mt-5 rounded-xl border border-red-300 px-5 py-2.5 text-sm font-semibold text-red-600 hover:bg-red-50 disabled:opacity-50"
+                                            className="mt-5 rounded-xl border border-red-300 dark:border-red-800 px-5 py-2.5 text-sm font-semibold text-danger hover:bg-danger/10 disabled:opacity-50 cursor-pointer"
                                         >
                                             {cancellingId === order._id
                                                 ? 'Cancelling...'

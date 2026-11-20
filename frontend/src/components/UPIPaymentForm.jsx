@@ -266,15 +266,17 @@ export default function UPIPaymentForm({
           {/* QR Code and Payment Details */}
           <div className="grid gap-5 sm:grid-cols-2 sm:items-start">
             {/* QR Codes Column: Primary Dynamic QR + Static Fallback QR */}
-            <div className="flex flex-col items-center justify-center rounded-2xl border border-border bg-white p-4 shadow-xs">
-              {/* Primary: Dynamic QR from qrcode.react */}
-              <div className="flex flex-col items-center">
-                <QRCodeSVG
-                  value={upiLink}
-                  size={170}
-                  level="M"
-                  includeMargin={true}
-                />
+            <div className="flex flex-col items-center justify-center rounded-2xl border border-border bg-surface p-4 shadow-xs">
+              {/* Primary: Dynamic QR from qrcode.react (always black on white for scannability) */}
+              <div className="flex flex-col items-center w-full">
+                <div className="rounded-xl bg-white p-2.5 border border-border shadow-xs">
+                  <QRCodeSVG
+                    value={upiLink}
+                    size={170}
+                    level="M"
+                    includeMargin={true}
+                  />
+                </div>
                 <p className="mt-2 text-center text-xs font-bold text-text">
                   Scan with any UPI app
                 </p>
@@ -285,11 +287,13 @@ export default function UPIPaymentForm({
 
               {/* Static Fallback QR */}
               <div className="mt-4 pt-4 border-t border-border w-full flex flex-col items-center text-center">
-                <img
-                  src="/upi-qr.png"
-                  alt="Static UPI QR"
-                  className="h-36 w-36 object-contain rounded-xl border border-border/70 bg-white p-1"
-                />
+                <div className="rounded-xl bg-white p-2 border border-border shadow-xs">
+                  <img
+                    src="/upi-qr.png"
+                    alt="Static UPI QR"
+                    className="h-32 w-32 object-contain"
+                  />
+                </div>
                 <p className="mt-2 text-[11px] font-medium text-muted-text leading-relaxed">
                   Can&apos;t scan? Scan this QR and enter the amount manually: <span className="font-bold text-primary">₹{amount}</span>
                 </p>

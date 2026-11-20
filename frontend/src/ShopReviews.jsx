@@ -38,7 +38,7 @@ function StarDisplay({ rating, size = 'sm' }) {
   return (
     <span className={cls} aria-label={`${rating} out of 5 stars`}>
       {Array.from({ length: 5 }, (_, i) => (
-        <span key={i} className={i < full ? 'text-amber-400' : 'text-gray-300'}>
+        <span key={i} className={i < full ? 'text-amber-400' : 'text-muted-text/30'}>
           ★
         </span>
       ))}
@@ -62,13 +62,13 @@ function StarInput({ value, onChange }) {
             onMouseEnter={() => setHovered(star)}
             onMouseLeave={() => setHovered(0)}
             aria-label={`${star} star${star !== 1 ? 's' : ''}`}
-            className="text-2xl transition-transform hover:scale-110 focus:outline-none"
+            className="text-2xl transition-transform hover:scale-110 focus:outline-none cursor-pointer"
           >
             <span
               className={
                 star <= (hovered || value)
                   ? 'text-amber-400'
-                  : 'text-gray-300'
+                  : 'text-muted-text/30'
               }
             >
               ★
@@ -90,16 +90,16 @@ function ReviewCard({ review }) {
   })
 
   return (
-    <article className="rounded-2xl border border-[#eadfd2] bg-white p-5 shadow-sm">
+    <article className="rounded-2xl border border-border bg-surface p-5 shadow-sm">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <p className="font-semibold text-[#3f2720]">{name}</p>
-          <p className="mt-0.5 text-xs text-gray-400">{date}</p>
+          <p className="font-semibold text-text">{name}</p>
+          <p className="mt-0.5 text-xs text-muted-text">{date}</p>
         </div>
         <StarDisplay rating={review.rating} />
       </div>
       {review.comment && (
-        <p className="mt-3 text-sm leading-6 text-gray-600">{review.comment}</p>
+        <p className="mt-3 text-sm leading-6 text-muted-text">{review.comment}</p>
       )}
     </article>
   )
@@ -144,20 +144,20 @@ function ReviewForm({ completedOrders, onSubmitted }) {
   return (
     <form
       onSubmit={handleSubmit}
-      className="rounded-2xl border border-[#eadfd2] bg-white p-6 shadow-sm"
+      className="rounded-2xl border border-border bg-surface p-6 shadow-sm"
     >
-      <h4 className="text-lg font-bold text-[#3f2720]">Write a Review</h4>
-      <p className="mt-1 text-sm text-gray-500">
+      <h4 className="text-lg font-bold text-text">Write a Review</h4>
+      <p className="mt-1 text-sm text-muted-text">
         Only completed orders can be reviewed. One review per order.
       </p>
 
       {error && (
-        <div className="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+        <div className="mt-4 rounded-xl border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-800 dark:border-red-800 dark:bg-red-950/40 dark:text-red-300">
           {error}
         </div>
       )}
       {success && (
-        <div className="mt-4 rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">
+        <div className="mt-4 rounded-xl border border-green-300 bg-green-50 px-4 py-3 text-sm text-green-800 dark:border-green-800 dark:bg-green-950/40 dark:text-green-300">
           {success}
         </div>
       )}
@@ -165,13 +165,13 @@ function ReviewForm({ completedOrders, onSubmitted }) {
       <div className="mt-5 space-y-5">
         {completedOrders.length > 1 && (
           <div>
-            <label className="block text-sm font-medium text-[#3f2720] mb-2">
+            <label className="block text-sm font-medium text-text mb-2">
               Select Order
             </label>
             <select
               value={activeOrderId}
               onChange={(e) => setSelectedOrderId(e.target.value)}
-              className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm outline-none focus:border-[#7b1e1e] focus:ring-2 focus:ring-[#7b1e1e]/10"
+              className="w-full rounded-xl border border-border bg-surface px-4 py-3 text-sm text-text outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
             >
               {completedOrders.map((order) => (
                 <option key={order._id} value={order._id}>
@@ -183,15 +183,15 @@ function ReviewForm({ completedOrders, onSubmitted }) {
         )}
 
         <div>
-          <label className="block text-sm font-medium text-[#3f2720] mb-2">
-            Rating <span className="text-red-500">*</span>
+          <label className="block text-sm font-medium text-text mb-2">
+            Rating <span className="text-danger">*</span>
           </label>
           <StarInput value={rating} onChange={setRating} />
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-[#3f2720] mb-2">
-            Comment <span className="text-gray-400">(optional)</span>
+          <label className="block text-sm font-medium text-text mb-2">
+            Comment <span className="text-muted-text">(optional)</span>
           </label>
           <textarea
             value={comment}
@@ -199,9 +199,9 @@ function ReviewForm({ completedOrders, onSubmitted }) {
             maxLength={500}
             rows={3}
             placeholder="Share your experience…"
-            className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none focus:border-[#7b1e1e] focus:ring-2 focus:ring-[#7b1e1e]/10 resize-none"
+            className="w-full rounded-xl border border-border bg-surface px-4 py-3 text-sm text-text placeholder:text-muted-text/50 outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 resize-none"
           />
-          <p className="mt-1 text-right text-xs text-gray-400">
+          <p className="mt-1 text-right text-xs text-muted-text">
             {comment.length}/500
           </p>
         </div>
@@ -209,7 +209,7 @@ function ReviewForm({ completedOrders, onSubmitted }) {
         <button
           type="submit"
           disabled={submitting}
-          className="w-full rounded-xl bg-[#7b1e1e] px-4 py-3 font-semibold text-white transition hover:bg-[#641818] disabled:cursor-not-allowed disabled:opacity-60"
+          className="w-full rounded-xl bg-primary px-4 py-3 font-semibold text-white transition hover:bg-primary-hover disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer"
         >
           {submitting ? 'Submitting…' : 'Submit Review'}
         </button>
@@ -322,14 +322,14 @@ export default function ShopReviews({ shopId, userRole }) {
     <section className="mt-12">
       <div className="mb-6 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-[#3f2720]">Reviews</h2>
+          <h2 className="text-2xl font-bold text-text">Reviews</h2>
           {!loading && !error && (
             <div className="mt-1 flex items-center gap-3">
               <StarDisplay rating={averageRating} size="lg" />
-              <span className="text-lg font-semibold text-[#3f2720]">
+              <span className="text-lg font-semibold text-text">
                 {averageRating > 0 ? averageRating.toFixed(1) : '—'}
               </span>
-              <span className="text-sm text-gray-500">
+              <span className="text-sm text-muted-text">
                 ({reviewCount} review{reviewCount !== 1 ? 's' : ''})
               </span>
             </div>
@@ -342,13 +342,13 @@ export default function ShopReviews({ shopId, userRole }) {
         <>
           {ordersLoading && (
             <div className="mb-8 flex items-center gap-3 py-4">
-              <div className="h-5 w-5 animate-spin rounded-full border-2 border-[#eadfd2] border-t-[#7b1e1e]" />
-              <p className="text-sm text-gray-500">Checking order eligibility…</p>
+              <div className="h-5 w-5 animate-spin rounded-full border-2 border-border border-t-primary" />
+              <p className="text-sm text-muted-text">Checking order eligibility…</p>
             </div>
           )}
 
           {!ordersLoading && ordersError && (
-            <div className="mb-8 rounded-xl border border-red-200 bg-red-50 px-5 py-4 text-sm text-red-700">
+            <div className="mb-8 rounded-xl border border-red-300 bg-red-50 px-5 py-4 text-sm text-red-800 dark:border-red-800 dark:bg-red-950/40 dark:text-red-300">
               <p className="font-semibold">Unable to check review eligibility</p>
               <p className="mt-1 text-xs">{ordersError}</p>
             </div>
@@ -364,20 +364,20 @@ export default function ShopReviews({ shopId, userRole }) {
           )}
 
           {!ordersLoading && !ordersError && completedOrders.length === 0 && totalShopOrdersCount > 0 && (
-            <div className="mb-8 rounded-2xl border border-[#eadfd2] bg-white p-6 text-center shadow-sm">
+            <div className="mb-8 rounded-2xl border border-border bg-surface p-6 text-center shadow-sm">
               <p className="text-2xl mb-1">✅</p>
-              <h4 className="font-bold text-[#3f2720]">All your completed orders for this shop have been reviewed</h4>
-              <p className="mt-1 text-sm text-gray-500">
+              <h4 className="font-bold text-text">All your completed orders for this shop have been reviewed</h4>
+              <p className="mt-1 text-sm text-muted-text">
                 Thank you for sharing your feedback!
               </p>
             </div>
           )}
 
           {!ordersLoading && !ordersError && completedOrders.length === 0 && totalShopOrdersCount === 0 && (
-            <div className="mb-8 rounded-2xl border border-dashed border-[#d9cabb] bg-[#fffaf4] px-6 py-8 text-center">
+            <div className="mb-8 rounded-2xl border border-dashed border-border bg-surface/50 px-6 py-8 text-center">
               <p className="text-2xl mb-1">🛍️</p>
-              <h4 className="font-bold text-[#3f2720]">Want to review this shop?</h4>
-              <p className="mt-1 text-sm text-gray-500">
+              <h4 className="font-bold text-text">Want to review this shop?</h4>
+              <p className="mt-1 text-sm text-muted-text">
                 Only customers with a completed order can write a review. Place and complete an order to share your feedback!
               </p>
             </div>
@@ -388,22 +388,22 @@ export default function ShopReviews({ shopId, userRole }) {
       {/* Reviews List */}
       {loading && (
         <div className="flex items-center gap-3 py-6">
-          <div className="h-5 w-5 animate-spin rounded-full border-2 border-[#eadfd2] border-t-[#7b1e1e]" />
-          <p className="text-sm text-gray-500">Loading reviews…</p>
+          <div className="h-5 w-5 animate-spin rounded-full border-2 border-border border-t-primary" />
+          <p className="text-sm text-muted-text">Loading reviews…</p>
         </div>
       )}
 
       {!loading && error && (
-        <div className="rounded-xl border border-red-200 bg-red-50 px-5 py-4 text-sm text-red-700">
+        <div className="rounded-xl border border-red-300 bg-red-50 px-5 py-4 text-sm text-red-800 dark:border-red-800 dark:bg-red-950/40 dark:text-red-300">
           {error}
         </div>
       )}
 
       {!loading && !error && reviews.length === 0 && (
-        <div className="rounded-2xl border border-dashed border-[#d9cabb] bg-[#fffaf4] px-6 py-12 text-center">
+        <div className="rounded-2xl border border-dashed border-border bg-surface/50 px-6 py-12 text-center">
           <p className="text-2xl mb-2">⭐</p>
-          <p className="font-semibold text-[#3f2720]">No reviews yet</p>
-          <p className="mt-1 text-sm text-gray-500">
+          <p className="font-semibold text-text">No reviews yet</p>
+          <p className="mt-1 text-sm text-muted-text">
             Be the first to review this shop after completing an order.
           </p>
         </div>

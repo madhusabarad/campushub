@@ -299,14 +299,14 @@ export default function QRPickupCard({
 
                 {/* Completed Watermark Overlay */}
                 {isCompleted && (
-                  <div className="absolute inset-0 flex flex-col items-center justify-center rounded-xl bg-white/90 backdrop-blur-[1px] p-2 text-center animate-fade-in">
+                  <div className="absolute inset-0 flex flex-col items-center justify-center rounded-xl bg-white/95 backdrop-blur-[1px] p-2 text-center animate-fade-in">
                     <div className="flex h-12 w-12 items-center justify-center rounded-full bg-success/15 text-success text-2xl font-bold mb-1">
                       ✓
                     </div>
                     <span className="font-bold text-xs uppercase tracking-wider text-success">
                       Order Picked Up
                     </span>
-                    <span className="text-[10px] text-muted-text mt-0.5">
+                    <span className="text-[10px] text-gray-600 mt-0.5">
                       Fulfilled at counter
                     </span>
                   </div>
@@ -314,14 +314,14 @@ export default function QRPickupCard({
 
                 {/* Cancelled Watermark Overlay */}
                 {isCancelled && (
-                  <div className="absolute inset-0 flex flex-col items-center justify-center rounded-xl bg-white/90 backdrop-blur-[1px] p-2 text-center">
+                  <div className="absolute inset-0 flex flex-col items-center justify-center rounded-xl bg-white/95 backdrop-blur-[1px] p-2 text-center">
                     <div className="flex h-12 w-12 items-center justify-center rounded-full bg-danger/15 text-danger text-2xl font-bold mb-1">
                       ✕
                     </div>
                     <span className="font-bold text-xs uppercase tracking-wider text-danger">
                       Order Cancelled
                     </span>
-                    <span className="text-[10px] text-muted-text mt-0.5">
+                    <span className="text-[10px] text-gray-600 mt-0.5">
                       Not eligible for pickup
                     </span>
                   </div>
